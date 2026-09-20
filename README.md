@@ -1,4 +1,4 @@
-# Zc — collection website
+# zkninjas — collection website
 
 Static, responsive marketplace preview for a planned 3,333-piece Zcash collection. Serve `dist/` using any static server. Development: `node preview.mjs`.
 
