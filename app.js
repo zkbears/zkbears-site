@@ -1,8 +1,9 @@
-import { connectNoir } from "./wallet.js";
+import { connectNoir, restoreNoirConnection } from "./wallet.js";
 import { finishXAuth, getXUser, startXAuth, verifyFollow, verifyLikeAndQuote } from "./x-oauth.js";
+import { postConfigured, targetPostUrl } from "./x-config.js";
 
-const STORAGE_KEY = "zkbears-whitelist-v2";
-const state = { xUser: null, handle: false, follow: false, quote: false, wallet: false };
+const STORAGE_KEY = "zkbears-whitelist-v3";
+const state = { xUser: null, handle: false, follow: false, quote: false, wallet: false, walletAddress: "" };
 
 const form = document.querySelector("#whitelist-form");
 const handleInput = document.querySelector("#x-handle");
@@ -10,7 +11,6 @@ const walletInput = document.querySelector("#wallet-address");
 const walletStatus = document.querySelector("#wallet-status");
 const xStatus = document.querySelector("#x-status");
 const joinButton = document.querySelector("#join-button");
-const formNote = document.querySelector("#form-note");
 const progressCount = document.querySelector("#progress-count");
 
 function validUnifiedAddress(value) {
@@ -23,13 +23,15 @@ function setStatus(element, message, isError = false) {
 }
 
 function save() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify({ wallet: walletInput.value.trim() }));
+  localStorage.setItem(STORAGE_KEY, JSON.stringify({
+    completed: !joinButton.disabled,
+    xUsername: state.xUser?.username || "",
+  }));
 }
 
 function render() {
   const authenticatedHandle = state.xUser ? `@${state.xUser.username}`.toLowerCase() : "";
   state.handle = Boolean(authenticatedHandle && handleInput.value.trim().toLowerCase() === authenticatedHandle);
-  state.wallet = validUnifiedAddress(walletInput.value);
   const complete = [state.handle, state.follow, state.quote, state.wallet].filter(Boolean).length;
   progressCount.textContent = `${complete} / 4`;
   joinButton.disabled = complete !== 4;
@@ -46,17 +48,9 @@ function render() {
     document.querySelector(`[data-step="${task}"]`).classList.toggle("is-complete", state[task]);
   }
 
-  if (!walletInput.value) setStatus(walletStatus, "");
-  else if (state.wallet) setStatus(walletStatus, "Unified Address format verified.");
-  else setStatus(walletStatus, "Enter a valid Noir Wallet Unified Address beginning with u1.", true);
 }
 
-try {
-  const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
-  if (saved?.wallet) walletInput.value = saved.wallet;
-} catch {}
-
-walletInput.addEventListener("input", () => { render(); save(); });
+if (postConfigured()) document.querySelector('[data-open-task="quote"]').href = targetPostUrl();
 
 document.querySelector("#connect-x").addEventListener("click", async () => {
   if (state.xUser) {
@@ -72,20 +66,26 @@ document.querySelector("#connect-x").addEventListener("click", async () => {
 });
 
 document.querySelector('[data-check-task="follow"]').addEventListener("click", async () => {
+  const button = document.querySelector('[data-check-task="follow"]');
   const status = document.querySelector('[data-task-status="follow"]');
   setStatus(status, "Checking your follow through X API…");
+  button.disabled = true;
   try {
     state.follow = await verifyFollow(state.xUser.id);
     setStatus(status, state.follow ? "Follow verified." : "Follow not found yet. Follow @zk_bears and try again.", !state.follow);
   } catch (error) {
     setStatus(status, error?.message || "Follow verification failed.", true);
+  } finally {
+    button.disabled = false;
   }
   render();
 });
 
 document.querySelector('[data-check-task="quote"]').addEventListener("click", async () => {
+  const button = document.querySelector('[data-check-task="quote"]');
   const status = document.querySelector('[data-task-status="quote"]');
   setStatus(status, "Checking the like and quote through X API…");
+  button.disabled = true;
   try {
     const result = await verifyLikeAndQuote(state.xUser.id);
     state.quote = result.liked && result.quoted;
@@ -93,6 +93,8 @@ document.querySelector('[data-check-task="quote"]').addEventListener("click", as
     setStatus(status, message, !state.quote);
   } catch (error) {
     setStatus(status, error?.message || "Like and quote verification failed.", true);
+  } finally {
+    button.disabled = false;
   }
   render();
 });
@@ -100,7 +102,12 @@ document.querySelector('[data-check-task="quote"]').addEventListener("click", as
 document.querySelector("#use-noir").addEventListener("click", async () => {
   setStatus(walletStatus, "Waiting for Noir Wallet…");
   try {
-    walletInput.value = await connectNoir();
+    const connection = await connectNoir();
+    state.walletAddress = connection.address;
+    state.wallet = validUnifiedAddress(connection.address);
+    walletInput.value = connection.address;
+    document.querySelector("#use-noir").textContent = "NOIR CONNECTED";
+    setStatus(walletStatus, "Connected and verified through Noir Wallet.");
     render();
     save();
   } catch (error) {
@@ -113,7 +120,7 @@ form.addEventListener("submit", (event) => {
   render();
   if (joinButton.disabled) return;
   save();
-  formNote.textContent = "Your verified checklist is saved on this device.";
+  joinButton.textContent = "SPOT SAVED ✓";
 });
 
 const termsDialog = document.querySelector("#terms-dialog");
@@ -136,8 +143,20 @@ async function restoreX() {
   render();
 }
 
+async function restoreNoir() {
+  const connection = await restoreNoirConnection();
+  if (!connection || !validUnifiedAddress(connection.address)) return;
+  state.walletAddress = connection.address;
+  state.wallet = true;
+  walletInput.value = connection.address;
+  document.querySelector("#use-noir").textContent = "NOIR CONNECTED";
+  setStatus(walletStatus, "Connected and verified through Noir Wallet.");
+  render();
+}
+
 render();
 restoreX();
+restoreNoir();
 
 const nftSources = Array.from({ length: 12 }, (_, index) => `./assets/nft-${String(index + 1).padStart(2, "0")}.png`);
 const nftFrames = [...document.querySelectorAll(".nft-frame")];
