@@ -10,9 +10,10 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="./style.css" />
+    <script type="module" src="./motion.js"></script>
     <script type="module" src="./app.js"></script>
   </head>
-  <body>
+  <body class="page-enter">
     <header class="site-header">
       <a class="brand" href="#top" aria-label="ZKBEARS home">ZKBEARS</a>
       <nav aria-label="Main navigation">
@@ -60,17 +61,18 @@
               </div>
             </div>
 
-            <aside class="supply-sign" aria-label="Total supply 3333">
+          </div>
+
+          <aside class="supply-display" aria-label="Total supply 3333">
+            <i class="sign-post" aria-hidden="true"></i>
+            <i class="sign-arm" aria-hidden="true"></i>
+            <i class="sign-brace" aria-hidden="true"></i>
+            <div class="supply-sign">
               <span>TOTAL SUPPLY</span>
               <strong>3,333</strong>
               <span>PIXEL BEARS</span>
-            </aside>
-          </div>
-
-          <div class="lounger-scene" aria-label="Pixel bear relaxing on a beach lounger">
-            <div class="pixel-lounger" aria-hidden="true"></div>
-            <img src="./assets/lounger-bear-cutout.png" alt="Pixel bear relaxing on a beach lounger" />
-          </div>
+            </div>
+          </aside>
         </div>
         <div class="grass grass--far" aria-hidden="true"></div>
         <div class="grass grass--near" aria-hidden="true"></div>
