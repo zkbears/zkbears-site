@@ -8,7 +8,7 @@
     <title>ZKBEARS — Pixel bears on Zcash</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400..700&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="./style.css" />
     <script type="module" src="./app.js"></script>
   </head>
@@ -16,6 +16,7 @@
     <header class="site-header">
       <a class="brand" href="#top" aria-label="ZKBEARS home">ZKBEARS</a>
       <nav aria-label="Main navigation">
+        <a class="pixel-button pixel-button--coral" href="./checker.html">CHACKER</a>
         <a class="pixel-button pixel-button--light" href="#collection">COLLECTION ↓</a>
         <a class="pixel-button" href="https://x.com/zk_bears" target="_blank" rel="noreferrer">FOLLOW ON X ↗</a>
       </nav>
@@ -29,6 +30,12 @@
         <div class="tree tree--one" aria-hidden="true"></div>
         <div class="tree tree--two" aria-hidden="true"></div>
         <div class="tree tree--three" aria-hidden="true"></div>
+        <div class="meadow-decor mushroom mushroom--one" aria-hidden="true"></div>
+        <div class="meadow-decor mushroom mushroom--two" aria-hidden="true"></div>
+        <div class="meadow-decor flowers flowers--one" aria-hidden="true"></div>
+        <div class="meadow-decor flowers flowers--two" aria-hidden="true"></div>
+        <div class="meadow-decor pixel-rock" aria-hidden="true"></div>
+        <div class="meadow-decor fallen-log" aria-hidden="true"></div>
 
         <div class="hero-inner page-width">
           <div class="hero-copy pixel-panel">
@@ -94,9 +101,13 @@
                 <label for="x-handle">YOUR X HANDLE</label>
                 <p>Enter the X username you will use for the whitelist.</p>
               </div>
-              <div class="task-action input-action">
-                <input id="x-handle" name="xHandle" type="text" autocomplete="off" placeholder="@yourhandle" maxlength="16" />
-                <span class="field-check" id="handle-check" aria-label="X handle status">✓</span>
+              <div class="x-controls">
+                <div class="task-action input-action">
+                  <input id="x-handle" name="xHandle" type="text" autocomplete="off" placeholder="@yourhandle" maxlength="16" />
+                  <span class="field-check" id="handle-check" aria-label="X handle status">✓</span>
+                </div>
+                <button class="noir-button" id="connect-x" type="button">CONNECT X</button>
+                <p class="task-status" id="x-status" role="status"></p>
               </div>
             </section>
 
@@ -108,8 +119,9 @@
               </div>
               <div class="task-action">
                 <a class="task-link" data-open-task="follow" href="https://x.com/zk_bears" target="_blank" rel="noreferrer">OPEN TASK ↗</a>
-                <button class="task-check" type="button" data-check-task="follow" aria-pressed="false" aria-label="Confirm follow task">✓</button>
+                <button class="task-check" type="button" data-check-task="follow" aria-pressed="false" aria-label="Verify follow task">✓</button>
               </div>
+              <p class="task-status" data-task-status="follow" role="status"></p>
             </section>
 
             <section class="task-card" data-step="quote">
@@ -120,8 +132,9 @@
               </div>
               <div class="task-action">
                 <a class="task-link" data-open-task="quote" href="https://x.com/zk_bears" target="_blank" rel="noreferrer">OPEN TASK ↗</a>
-                <button class="task-check" type="button" data-check-task="quote" aria-pressed="false" aria-label="Confirm like and quote task">✓</button>
+                <button class="task-check" type="button" data-check-task="quote" aria-pressed="false" aria-label="Verify like and quote task">✓</button>
               </div>
+              <p class="task-status" data-task-status="quote" role="status"></p>
             </section>
 
             <section class="task-card" data-step="wallet">
@@ -141,7 +154,7 @@
             </section>
 
             <button class="join-button" id="join-button" type="submit" disabled>SAVE MY SPOT</button>
-            <p class="form-note" id="form-note" role="status">X tasks are self-confirmed until X OAuth/API verification is connected.</p>
+            <p class="form-note" id="form-note" role="status">X tasks are checked through X OAuth/API after the site owner adds the X Client ID and announcement post ID.</p>
           </form>
         </div>
       </section>
