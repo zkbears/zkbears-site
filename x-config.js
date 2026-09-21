@@ -1,5 +1,5 @@
 export const X_CONFIG = Object.freeze({
-  clientId: "",
+  clientId: "LUZFTWF6WXY1V0NTUVdSV3NMZTk6MTpjaQ",
   targetUsername: "zk_bears",
   targetPostId: "",
   redirectUri: `${window.location.origin}/`,
