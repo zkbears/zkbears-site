@@ -1,8 +1,26 @@
 import { X_CONFIG, postConfigured, xConfigured } from "./x-config.js";
 
 const TOKEN_KEY = "zkbears-x-access-token";
-const VERIFIER_KEY = "zkbears-x-pkce-verifier";
-const STATE_KEY = "zkbears-x-oauth-state";
+const PENDING_PREFIX = "zkbears-x-oauth-pending:";
+const PENDING_MAX_AGE = 15 * 60 * 1000;
+
+function pendingKey(state) {
+  return `${PENDING_PREFIX}${state}`;
+}
+
+function clearExpiredTransactions() {
+  const now = Date.now();
+  for (let index = localStorage.length - 1; index >= 0; index -= 1) {
+    const key = localStorage.key(index);
+    if (!key?.startsWith(PENDING_PREFIX)) continue;
+    try {
+      const transaction = JSON.parse(localStorage.getItem(key) || "null");
+      if (!transaction?.createdAt || now - transaction.createdAt > PENDING_MAX_AGE) localStorage.removeItem(key);
+    } catch {
+      localStorage.removeItem(key);
+    }
+  }
+}
 
 function base64Url(bytes) {
   return btoa(String.fromCharCode(...bytes))
@@ -23,11 +41,11 @@ async function sha256(value) {
 
 export async function startXAuth() {
   if (!xConfigured()) throw new Error("The X Client ID has not been added yet.");
+  clearExpiredTransactions();
   const verifier = randomValue(48);
   const state = randomValue(24);
   const challenge = base64Url(await sha256(verifier));
-  sessionStorage.setItem(VERIFIER_KEY, verifier);
-  sessionStorage.setItem(STATE_KEY, state);
+  localStorage.setItem(pendingKey(state), JSON.stringify({ verifier, createdAt: Date.now() }));
 
   const params = new URLSearchParams({
     response_type: "code",
@@ -45,15 +63,26 @@ export async function finishXAuth() {
   const params = new URLSearchParams(window.location.search);
   const error = params.get("error");
   if (error) {
-    history.replaceState({}, "", window.location.pathname);
+    history.replaceState({}, "", `${window.location.pathname}#whitelist`);
     throw new Error(params.get("error_description") || "X authorization was not completed.");
   }
   const code = params.get("code");
   if (!code) return null;
   const returnedState = params.get("state");
-  const storedState = sessionStorage.getItem(STATE_KEY);
-  const verifier = sessionStorage.getItem(VERIFIER_KEY);
-  if (!storedState || returnedState !== storedState || !verifier) throw new Error("X authorization state could not be verified.");
+  let transaction = null;
+  if (returnedState) {
+    try {
+      transaction = JSON.parse(localStorage.getItem(pendingKey(returnedState)) || "null");
+    } catch {
+      transaction = null;
+    }
+  }
+  const isFresh = transaction?.createdAt && Date.now() - transaction.createdAt <= PENDING_MAX_AGE;
+  const verifier = isFresh ? transaction.verifier : "";
+  if (!returnedState || !verifier) {
+    history.replaceState({}, "", `${window.location.pathname}#whitelist`);
+    throw new Error("X authorization session expired. Return to the whitelist and connect X again.");
+  }
 
   const body = new URLSearchParams({
     code,
@@ -70,10 +99,14 @@ export async function finishXAuth() {
   const data = await response.json();
   if (!response.ok || !data.access_token) throw new Error(data.error_description || "X did not return an access token.");
   sessionStorage.setItem(TOKEN_KEY, data.access_token);
-  sessionStorage.removeItem(STATE_KEY);
-  sessionStorage.removeItem(VERIFIER_KEY);
-  history.replaceState({}, "", window.location.pathname);
+  localStorage.removeItem(pendingKey(returnedState));
+  clearExpiredTransactions();
+  history.replaceState({}, "", `${window.location.pathname}#whitelist`);
   return data.access_token;
+}
+
+export function clearXSession() {
+  sessionStorage.removeItem(TOKEN_KEY);
 }
 
 async function xRequest(path) {

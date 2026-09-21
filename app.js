@@ -1,21 +1,18 @@
 import { connectNoir, restoreNoirConnection } from "./wallet.js";
-import { finishXAuth, getXUser, startXAuth, verifyFollow, verifyLikeAndQuote } from "./x-oauth.js";
+import { clearXSession, finishXAuth, getXUser, startXAuth, verifyFollow, verifyLikeAndQuote } from "./x-oauth.js";
 import { postConfigured, targetPostUrl } from "./x-config.js";
+import { validUnifiedAddress } from "./zcash-address.js";
 
 const STORAGE_KEY = "zkbears-whitelist-v3";
+const X_ACCOUNT_KEY = "zkbears-x-account-v1";
 const state = { xUser: null, handle: false, follow: false, quote: false, wallet: false, walletAddress: "" };
 
 const form = document.querySelector("#whitelist-form");
-const handleInput = document.querySelector("#x-handle");
 const walletInput = document.querySelector("#wallet-address");
 const walletStatus = document.querySelector("#wallet-status");
 const xStatus = document.querySelector("#x-status");
 const joinButton = document.querySelector("#join-button");
 const progressCount = document.querySelector("#progress-count");
-
-function validUnifiedAddress(value) {
-  return /^u1[023456789acdefghjklmnpqrstuvwxyz]{50,250}$/.test(value.trim().toLowerCase());
-}
 
 function setStatus(element, message, isError = false) {
   element.textContent = message;
@@ -30,8 +27,7 @@ function save() {
 }
 
 function render() {
-  const authenticatedHandle = state.xUser ? `@${state.xUser.username}`.toLowerCase() : "";
-  state.handle = Boolean(authenticatedHandle && handleInput.value.trim().toLowerCase() === authenticatedHandle);
+  state.handle = Boolean(state.xUser?.id && state.xUser?.username);
   const complete = [state.handle, state.follow, state.quote, state.wallet].filter(Boolean).length;
   progressCount.textContent = `${complete} / 4`;
   joinButton.disabled = complete !== 4;
@@ -63,6 +59,19 @@ document.querySelector("#connect-x").addEventListener("click", async () => {
   } catch (error) {
     setStatus(xStatus, error?.message || "X authorization could not start.", true);
   }
+});
+
+walletInput.addEventListener("input", () => {
+  state.walletAddress = walletInput.value.trim();
+  state.wallet = validUnifiedAddress(state.walletAddress);
+  if (!state.walletAddress) {
+    setStatus(walletStatus, "");
+  } else if (state.wallet) {
+    setStatus(walletStatus, "Valid Unified Address.");
+  } else {
+    setStatus(walletStatus, "Enter a valid Unified Address beginning with u1.", true);
+  }
+  render();
 });
 
 document.querySelector('[data-check-task="follow"]').addEventListener("click", async () => {
@@ -130,12 +139,22 @@ termsDialog.addEventListener("click", (event) => { if (event.target === termsDia
 async function restoreX() {
   try {
     await finishXAuth();
-    state.xUser = await getXUser();
-    if (state.xUser) {
-      handleInput.value = `@${state.xUser.username}`;
-      handleInput.readOnly = true;
-      document.querySelector("#connect-x").textContent = "X CONNECTED";
-      setStatus(xStatus, `Authenticated as @${state.xUser.username}.`);
+    const xUser = await getXUser();
+    if (xUser) {
+      let boundAccount = null;
+      try {
+        boundAccount = JSON.parse(localStorage.getItem(X_ACCOUNT_KEY) || "null");
+      } catch {
+        localStorage.removeItem(X_ACCOUNT_KEY);
+      }
+      if (boundAccount?.id && boundAccount.id !== xUser.id) {
+        clearXSession();
+        throw new Error(`This device is already connected to @${boundAccount.username}. Only one X account can be used.`);
+      }
+      state.xUser = xUser;
+      localStorage.setItem(X_ACCOUNT_KEY, JSON.stringify({ id: xUser.id, username: xUser.username }));
+      document.querySelector("#connect-x").textContent = "X CONNECTED ✓";
+      setStatus(xStatus, `Authenticated as @${xUser.username}.`);
     }
   } catch (error) {
     setStatus(xStatus, error?.message || "X authorization failed.", true);

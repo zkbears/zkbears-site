@@ -71,9 +71,11 @@
             <i class="sign-arm" aria-hidden="true"></i>
             <i class="sign-brace" aria-hidden="true"></i>
             <div class="supply-sign">
-              <span>TOTAL SUPPLY</span>
-              <strong>3,333</strong>
-              <span>PIXEL BEARS</span>
+              <div class="supply-sign__content">
+                <span>TOTAL SUPPLY</span>
+                <strong>3,333</strong>
+                <span>PIXEL BEARS</span>
+              </div>
             </div>
           </aside>
         </div>
@@ -108,7 +110,7 @@
           <div class="whitelist-intro">
             <p class="section-kicker">EARLY ACCESS</p>
             <h2 id="whitelist-title">JOIN<br />WHITELIST</h2>
-            <p>Complete all four fields to save your place on this device.</p>
+            <p>Complete all four steps to save your place on this device.</p>
             <div class="progress" aria-live="polite"><strong id="progress-count">0 / 4</strong> COMPLETE</div>
           </div>
 
@@ -116,15 +118,14 @@
             <section class="task-card" data-step="handle">
               <div class="task-copy">
                 <span class="task-number">FIELD 01</span>
-                <label for="x-handle">YOUR X HANDLE</label>
-                <p>Enter the X username you will use for the whitelist.</p>
+                <h3>AUTHENTICATE</h3>
+                <p>Connect one X account to use for this whitelist entry.</p>
               </div>
               <div class="x-controls">
-                <div class="task-action input-action">
-                  <input id="x-handle" name="xHandle" type="text" autocomplete="off" placeholder="Connect X to verify" maxlength="16" readonly />
+                <div class="task-action auth-action">
+                  <button class="task-link" id="connect-x" type="button">CONNECT X ↗</button>
                   <span class="field-check" id="handle-check" aria-label="X handle status">✓</span>
                 </div>
-                <button class="noir-button" id="connect-x" type="button">CONNECT X</button>
                 <p class="task-status" id="x-status" role="status"></p>
               </div>
             </section>
@@ -163,7 +164,7 @@
               </div>
               <div class="wallet-controls">
                 <div class="task-action input-action">
-                  <input id="wallet-address" name="wallet" type="text" autocomplete="off" spellcheck="false" placeholder="Connect Noir Wallet" readonly />
+                  <input id="wallet-address" name="wallet" type="text" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="u1..." aria-describedby="wallet-status" />
                   <span class="field-check" id="wallet-check" aria-label="Wallet address status">✓</span>
                 </div>
                 <button class="noir-button" id="use-noir" type="button">USE NOIR</button>
