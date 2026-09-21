@@ -19,7 +19,7 @@ body {
   margin: 0;
   color: var(--forest);
   background: var(--cream);
-  font-family: "Kode Mono", ui-monospace, monospace;
+  font-family: "Silkscreen", ui-monospace, monospace;
   font-size: 16px;
   image-rendering: pixelated;
 }
@@ -237,8 +237,8 @@ h2 { margin-bottom: 0; font-size: clamp(48px, 6vw, 78px); line-height: .9; lette
 .task-card.is-complete { background: #dff2b8; }
 .task-number { display: block; margin-bottom: 7px; color: var(--blue); font-size: 14px; font-weight: 700; letter-spacing: .1em; }
 .task-copy h3, .task-copy label { display: block; margin: 0 0 7px; font-size: 24px; font-weight: 700; }
-.task-copy p { max-width: 610px; margin: 0; font-family: system-ui,sans-serif; font-size: 14px; line-height: 1.45; }
-.task-copy a { font-family: "Kode Mono",ui-monospace,monospace; font-weight: 700; }
+.task-copy p { max-width: 610px; margin: 0; font-family: inherit; font-size: 14px; line-height: 1.45; }
+.task-copy a { font-family: "Silkscreen",ui-monospace,monospace; font-weight: 700; }
 .task-action { display: flex; align-items: center; gap: 12px; }
 .task-link, .noir-button { min-height: 46px; white-space: nowrap; font-size: 16px; }
 .task-check, .field-check {
@@ -274,13 +274,13 @@ h2 { margin-bottom: 0; font-size: clamp(48px, 6vw, 78px); line-height: .9; lette
 .x-controls .input-action { min-width: 0; grid-column: 1 / -1; }
 .x-controls .task-status { grid-column: 1 / -1; }
 .wallet-controls .input-action { min-width: 0; grid-column: 1 / -1; }
-.wallet-status { grid-column: 1 / -1; min-height: 18px; margin: 0; font-family: system-ui,sans-serif; font-size: 13px; line-height: 1.35; }
+.wallet-status { grid-column: 1 / -1; min-height: 18px; margin: 0; font-family: inherit; font-size: 13px; line-height: 1.35; }
 .wallet-status.is-error { color: #a32720; }
-.task-status { grid-column: 1 / -1; min-height: 17px; margin: 0; font-family: system-ui,sans-serif; font-size: 13px; line-height: 1.35; }
+.task-status { grid-column: 1 / -1; min-height: 17px; margin: 0; font-family: inherit; font-size: 13px; line-height: 1.35; }
 .task-status.is-error { color: #a32720; }
 .join-button { width: 100%; min-height: 64px; color: var(--forest); background: var(--sun); font-size: 23px; }
 .join-button:disabled { opacity: .45; cursor: not-allowed; filter: grayscale(.5); }
-.form-note { margin: 0; font-family: system-ui,sans-serif; font-size: 13px; line-height: 1.45; opacity: .82; }
+.form-note { margin: 0; font-family: inherit; font-size: 13px; line-height: 1.45; opacity: .82; }
 
 footer { color: var(--cream); background: var(--forest); }
 .footer-inner { min-height: 110px; display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 24px; }
@@ -293,13 +293,13 @@ footer { color: var(--cream); background: var(--forest); }
 .terms-card { position: relative; max-height: 88vh; overflow: auto; padding: clamp(28px,5vw,58px); background: var(--cream); border: 4px solid var(--forest); box-shadow: 12px 12px 0 rgba(0,0,0,.28); }
 .terms-card h2 { margin: 14px 0 34px; }
 .terms-card h3 { margin: 30px 0 8px; font-size: 24px; }
-.terms-card p { font-family: system-ui,sans-serif; line-height: 1.55; }
+.terms-card p { font-family: inherit; line-height: 1.55; }
 .terms-close { position: sticky; top: 0; float: right; width: 46px; height: 46px; color: var(--cream); background: var(--forest); border: 0; font-size: 32px; cursor: pointer; }
 .terms-page { min-height: 100vh; background: var(--sky); }
 .standalone-terms { margin-block: 70px; max-width: 850px; }
 .standalone-terms h1 { margin: 18px 0 44px; }
 .standalone-terms h2 { margin: 34px 0 8px; font-size: 30px; }
-.standalone-terms p { font-family: system-ui,sans-serif; line-height: 1.6; }
+.standalone-terms p { font-family: inherit; line-height: 1.6; }
 
 .checker-page { min-height: 100vh; overflow: hidden; background: #1d1d1d; }
 .checker-scene { position: relative; min-height: calc(100vh - 104px); overflow: hidden; display: grid; place-items: center; background: #1d1d1d; }
@@ -351,6 +351,44 @@ footer { color: var(--cream); background: var(--forest); }
   .checker-scene { min-height: calc(100vh - 142px); }
   .checker-tree--right { display:none; }
   .soon-lockup h1 { padding-inline: 24px; }
+}
+
+/* Shared sunny meadow, with room for the collection and checker content. */
+.hero, .checker-scene {
+  background: var(--sky) url('./assets/pixel-meadow.png') center bottom / cover no-repeat;
+  image-rendering: pixelated;
+}
+.hero > .pixel-sun, .hero > .cloud, .hero > .tree,
+.hero > .meadow-decor, .hero > .grass,
+.checker-cloud, .checker-tree, .checker-ground { display: none; }
+.pixel-panel { background: #fff6d7; }
+.hero-inner { padding-top: 150px; padding-bottom: 110px; min-height: 800px; gap: 48px; }
+.supply-sign { margin-bottom: 0; transform: none; }
+.sign-ground { background: #376b30; }
+body { font-size: 18px; }
+.description { font-size: 21px; line-height: 1.5; }
+h1 { line-height: 1; font-weight: 600; }
+h2 { line-height: 1.05; letter-spacing: 0; }
+.brand { font-weight: 600; }
+.pixel-button { font-size: 18px; }
+.task-copy p, .form-note, .task-status, .wallet-status { font-size: 16px; }
+.checker-page { background: var(--sky); overflow: auto; }
+.checker-scene { min-height: max(650px, calc(100svh - 104px)); }
+.soon-lockup { margin: 0 0 65px; }
+.soon-lockup img {
+  width: clamp(300px, 36vw, 500px);
+  /* Presentation-only silhouette crop; the original NFT pixels stay untouched. */
+  clip-path: polygon(45% 12.7%,54.5% 12.7%,54.5% 14%,59% 14%,59% 15.4%,62% 15.4%,62% 17%,64% 17%,64% 21%,65.4% 21%,65.4% 26%,67% 26%,67% 29%,69% 29%,69% 31%,70.5% 31%,70.5% 34%,69% 34%,69% 37.5%,70% 37.5%,70% 44.7%,68.5% 44.7%,68.5% 48%,67% 48%,67% 52%,70% 52%,70% 58%,73.5% 63%,75.5% 69%,78% 75%,79% 79%,79% 84%,77% 89%,73% 91.8%,26% 91.8%,22% 89%,19% 85%,17% 81%,17% 76%,19% 71%,20% 68%,22% 65%,25% 61%,27% 57%,27% 51%,29% 51%,29% 47%,30% 47%,30% 43%,29% 43%,29% 38%,31% 38%,31% 36%,28% 36%,28% 32%,30% 30%,31% 27%,32% 27%,32% 21.5%,34% 18%,37% 16%,40% 14%,45% 14%);
+}
+.soon-lockup h1 { font-size: clamp(100px, 15vw, 190px); line-height: 1; padding-block: 0 8px; }
+@media (max-width: 720px) {
+  .hero-inner { min-height: 1000px; padding: 130px 0 100px; }
+  .hero, .checker-scene { background-size: auto 100%; }
+  .hero h1 { font-size: clamp(50px, 16vw, 90px); }
+  .description { font-size: 18px; }
+  .pixel-button { font-size: 14px; }
+  .soon-lockup h1 { font-size: clamp(76px, 23vw, 130px); padding-inline: 20px; }
+  .checker-scene { min-height: max(600px, calc(100svh - 142px)); }
 }
 
 @media (prefers-reduced-motion: reduce) {
