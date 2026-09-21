@@ -3,72 +3,171 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#0e0c09" />
-    <meta
-      name="description"
-      content="ZKBEARS is a collection of 3,333 pixel bears built around the Zcash ecosystem."
-    />
-    <title>ZKBEARS — 3,333 pixel bears on Zcash</title>
+    <meta name="theme-color" content="#75c4e3" />
+    <meta name="description" content="ZKBEARS — 3,333 pixel bears built around the Zcash ecosystem." />
+    <title>ZKBEARS — Pixel bears on Zcash</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400..700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="./style.css" />
+    <script type="module" src="./app.js"></script>
   </head>
   <body>
     <header class="site-header">
-      <a class="brand" href="#top" aria-label="ZKBEARS home">
-        <span class="pixel-mark" aria-hidden="true"></span>
-        <span>
-          <strong>ZKBEARS</strong>
-          <small>PIXEL COLLECTION · ZCASH</small>
-        </span>
-      </a>
-      <div class="header-supply" aria-label="Total supply 3333">
-        <strong>3333</strong>
-        <span>TOTAL SUPPLY</span>
-      </div>
+      <a class="brand" href="#top" aria-label="ZKBEARS home">ZKBEARS</a>
+      <nav aria-label="Main navigation">
+        <a class="pixel-button pixel-button--light" href="#collection">COLLECTION ↓</a>
+        <a class="pixel-button" href="https://x.com/zk_bears" target="_blank" rel="noreferrer">FOLLOW ON X ↗</a>
+      </nav>
     </header>
 
     <main id="top">
-      <section class="hero" aria-labelledby="collection-title">
-        <div class="hero-copy">
-          <p class="eyebrow">PRIVATE BY NATURE. DIFFERENT BY DESIGN.</p>
-          <h1 id="collection-title">ZKBEARS</h1>
-          <div class="description">
-            <p>zkBEARS — private by nature. Different by design.</p>
-            <p>A collection of pixel bears built around the Zcash ecosystem.</p>
-            <p>
-              Each zkBEAR belongs to a single visual world but possesses its own identity.
-              Clothing, accessories, emotions, colors, and rare traits create thousands of
-              possible combinations—from minimalist characters to the most unusual members
-              of the collection.
-            </p>
-          </div>
-        </div>
+      <section class="hero" aria-labelledby="hero-title">
+        <div class="pixel-sun" aria-hidden="true"></div>
+        <div class="cloud cloud--one" aria-hidden="true"></div>
+        <div class="cloud cloud--two" aria-hidden="true"></div>
+        <div class="tree tree--one" aria-hidden="true"></div>
+        <div class="tree tree--two" aria-hidden="true"></div>
+        <div class="tree tree--three" aria-hidden="true"></div>
 
-        <aside class="supply-card" aria-label="Collection supply">
-          <span>TOTAL SUPPLY</span>
-          <strong>3,333</strong>
-          <p>PIXEL BEARS / ZCASH</p>
-        </aside>
+        <div class="hero-inner page-width">
+          <div class="hero-copy pixel-panel">
+            <h1 id="hero-title">ZKBEARS</h1>
+            <p class="tagline">PRIVATE BY NATURE. DIFFERENT BY DESIGN.</p>
+            <div class="description">
+              <p>A collection of pixel bears built around the Zcash ecosystem.</p>
+              <p>
+                Each zkBEAR belongs to a single visual world but possesses its own identity.
+                Clothing, accessories, emotions, colors, and rare traits create thousands of
+                possible combinations—from minimalist characters to the most unusual members
+                of the collection.
+              </p>
+            </div>
+          </div>
+
+          <aside class="supply-sign" aria-label="Total supply 3333">
+            <span>TOTAL SUPPLY</span>
+            <strong>3,333</strong>
+            <span>PIXEL BEARS</span>
+          </aside>
+        </div>
+        <div class="grass grass--far" aria-hidden="true"></div>
+        <div class="grass grass--near" aria-hidden="true"></div>
       </section>
 
-      <section class="collection" aria-labelledby="collection-heading">
-        <div class="section-heading">
-          <h2 id="collection-heading">THE COLLECTION</h2>
-          <p>Artwork will be revealed here.</p>
+      <section class="collection" id="collection" aria-labelledby="collection-title">
+        <div class="page-width">
+          <div class="section-heading">
+            <h2 id="collection-title">THE COLLECTION</h2>
+            <p>12 OPEN NFT SLOTS</p>
+          </div>
+          <div class="nft-grid" aria-label="Twelve numbered NFT artwork placeholders">
+            <div class="nft-frame"><span>01</span></div>
+            <div class="nft-frame"><span>02</span></div>
+            <div class="nft-frame"><span>03</span></div>
+            <div class="nft-frame"><span>04</span></div>
+            <div class="nft-frame"><span>05</span></div>
+            <div class="nft-frame"><span>06</span></div>
+            <div class="nft-frame"><span>07</span></div>
+            <div class="nft-frame"><span>08</span></div>
+            <div class="nft-frame"><span>09</span></div>
+            <div class="nft-frame"><span>10</span></div>
+            <div class="nft-frame"><span>11</span></div>
+            <div class="nft-frame"><span>12</span></div>
+          </div>
         </div>
+      </section>
 
-        <div class="nft-grid" aria-label="Four NFT artwork placeholders">
-          <div class="nft-frame" aria-label="NFT artwork placeholder"></div>
-          <div class="nft-frame" aria-label="NFT artwork placeholder"></div>
-          <div class="nft-frame" aria-label="NFT artwork placeholder"></div>
-          <div class="nft-frame" aria-label="NFT artwork placeholder"></div>
+      <section class="whitelist" id="whitelist" aria-labelledby="whitelist-title">
+        <div class="page-width whitelist-layout">
+          <div class="whitelist-intro">
+            <p class="section-kicker">EARLY ACCESS</p>
+            <h2 id="whitelist-title">JOIN<br />WHITELIST</h2>
+            <p>Complete all four fields to save your place on this device.</p>
+            <div class="progress" aria-live="polite"><strong id="progress-count">0 / 4</strong> COMPLETE</div>
+          </div>
+
+          <form class="task-list" id="whitelist-form" novalidate>
+            <section class="task-card" data-step="handle">
+              <div class="task-copy">
+                <span class="task-number">FIELD 01</span>
+                <label for="x-handle">YOUR X HANDLE</label>
+                <p>Enter the X username you will use for the whitelist.</p>
+              </div>
+              <div class="task-action input-action">
+                <input id="x-handle" name="xHandle" type="text" autocomplete="off" placeholder="@yourhandle" maxlength="16" />
+                <span class="field-check" id="handle-check" aria-label="X handle status">✓</span>
+              </div>
+            </section>
+
+            <section class="task-card" data-step="follow">
+              <div class="task-copy">
+                <span class="task-number">TASK 01</span>
+                <h3>FOLLOW @ZK_BEARS</h3>
+                <p>Go to the official X profile, follow the account and then come back here.</p>
+              </div>
+              <div class="task-action">
+                <a class="task-link" data-open-task="follow" href="https://x.com/zk_bears" target="_blank" rel="noreferrer">OPEN TASK ↗</a>
+                <button class="task-check" type="button" data-check-task="follow" aria-pressed="false" aria-label="Confirm follow task">✓</button>
+              </div>
+            </section>
+
+            <section class="task-card" data-step="quote">
+              <div class="task-copy">
+                <span class="task-number">TASK 02</span>
+                <h3>LIKE + QUOTE</h3>
+                <p>Like the announcement, quote it on X and then come back here. The final post link can be added later.</p>
+              </div>
+              <div class="task-action">
+                <a class="task-link" data-open-task="quote" href="https://x.com/zk_bears" target="_blank" rel="noreferrer">OPEN TASK ↗</a>
+                <button class="task-check" type="button" data-check-task="quote" aria-pressed="false" aria-label="Confirm like and quote task">✓</button>
+              </div>
+            </section>
+
+            <section class="task-card" data-step="wallet">
+              <div class="task-copy">
+                <span class="task-number">TASK 03</span>
+                <label for="wallet-address">ZCASH WALLET ADDRESS</label>
+                <p>Use a Unified Address from Noir Wallet. <a href="https://www.zknoir.com/" target="_blank" rel="noreferrer">How to install Noir Wallet ↗</a></p>
+              </div>
+              <div class="wallet-controls">
+                <div class="task-action input-action">
+                  <input id="wallet-address" name="wallet" type="text" autocomplete="off" spellcheck="false" placeholder="u1..." />
+                  <span class="field-check" id="wallet-check" aria-label="Wallet address status">✓</span>
+                </div>
+                <button class="noir-button" id="use-noir" type="button">USE NOIR</button>
+                <p class="wallet-status" id="wallet-status" role="status"></p>
+              </div>
+            </section>
+
+            <button class="join-button" id="join-button" type="submit" disabled>SAVE MY SPOT</button>
+            <p class="form-note" id="form-note" role="status">X tasks are self-confirmed until X OAuth/API verification is connected.</p>
+          </form>
         </div>
       </section>
     </main>
 
     <footer>
-      <strong>ZKBEARS</strong>
-      <span>PRIVATE BY NATURE · DIFFERENT BY DESIGN</span>
-      <a href="./terms.html">TERMS</a>
+      <div class="page-width footer-inner">
+        <strong>ZKBEARS</strong>
+        <button type="button" id="open-terms">TERMS</button>
+      </div>
     </footer>
+
+    <dialog class="terms-dialog" id="terms-dialog" aria-labelledby="terms-title">
+      <form method="dialog" class="terms-card">
+        <button class="terms-close" value="close" aria-label="Close terms">×</button>
+        <p class="section-kicker">LAST UPDATED · SEPTEMBER 2026</p>
+        <h2 id="terms-title">TERMS</h2>
+        <h3>Collection information</h3>
+        <p>Collection artwork, traits, availability, release details, and related information may change before the final release. Content on this website is provided for general information.</p>
+        <h3>Ownership</h3>
+        <p>ZKBEARS names, artwork, visual elements, and website content belong to their respective rights holders. Ownership rights attached to an NFT will be described in the final collection license.</p>
+        <h3>No financial advice</h3>
+        <p>Nothing on this website is financial, investment, legal, or tax advice. Digital assets involve risk, and you are responsible for your own decisions.</p>
+        <h3>Changes</h3>
+        <p>These terms may be updated as the collection develops. Continued use of the website after an update means that the revised terms apply.</p>
+      </form>
+    </dialog>
   </body>
 </html>
