@@ -1,7 +1,9 @@
 const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 
 window.addEventListener("pageshow", () => {
-  document.body.classList.remove("page-leaving");
+  document.body.classList.remove("page-leaving", "page-enter");
+  if (reduceMotion.matches) return;
+  requestAnimationFrame(() => document.body.classList.add("page-enter"));
 });
 
 document.addEventListener("click", (event) => {
@@ -16,6 +18,7 @@ document.addEventListener("click", (event) => {
   if (destination.pathname === current.pathname && destination.search === current.search) return;
 
   event.preventDefault();
+  document.body.classList.remove("page-enter");
   document.body.classList.add("page-leaving");
   window.setTimeout(() => window.location.assign(destination.href), 340);
 });
