@@ -2,3 +2,9 @@ node_modules/
 .wrangler/
 .dev.vars
 *.log
+
+# Local maintenance files that are not part of the published site.
+WHITELIST_SETUP_RU.md
+tests/
+whitelist-api/test/
+whitelist-api/package.json
