@@ -43,7 +43,7 @@ export const whitelistApi = Object.freeze({
   logout() {
     return request("/api/session", { method: "DELETE" });
   },
-  verifyFollow() {
+  completeFollowVisit() {
     return request("/api/tasks/follow", { method: "POST", body: "{}" });
   },
   verifyEngagement() {

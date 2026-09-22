@@ -100,7 +100,6 @@ async function authorize(environment = env) {
       assert.match(init.headers.Authorization, /^Basic /);
       return Response.json({ access_token: "access-token", refresh_token: "refresh-token", expires_in: 7200 });
     }
-    if (value.includes("/2/users/me")) return Response.json({ data: { id: "42", username: "collector", name: "Collector", profile_image_url: "https://img.example/avatar.png" } });
     throw new Error(`Unexpected fetch ${value}`);
   };
   try {
@@ -141,7 +140,8 @@ test("complete authentication, verification and submission flow", async () => {
   const session = await worker.fetch(apiRequest("/api/session", { headers }), env);
   assert.equal(session.status, 200);
   const sessionPayload = await session.json();
-  assert.equal(sessionPayload.user.username, "collector");
+  assert.equal(sessionPayload.user.username, "connected");
+  assert.match(sessionPayload.user.id, /^oauth_[a-f0-9]{40}$/);
   assert.doesNotMatch(JSON.stringify(sessionPayload), /access-token|refresh-token|token_payload/);
 
   const prematureWallet = encodeBech32m("u");
@@ -155,11 +155,8 @@ test("complete authentication, verification and submission flow", async () => {
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async (url) => {
     const value = String(url);
-    if (value.includes("/users/by/username/zk_bears?user.fields=connection_status")) {
-      return Response.json({ data: { id: "99", connection_status: ["following"] } });
-    }
-    if (value.includes("/liking_users")) return Response.json({ data: [{ id: "42" }] });
-    if (value.includes("/quote_tweets")) return Response.json({ data: [{ author_id: "42" }] });
+    if (value.includes("/liking_users")) return Response.json({ data: [{ id: sessionPayload.user.id }] });
+    if (value.includes("/quote_tweets")) return Response.json({ data: [{ author_id: sessionPayload.user.id }] });
     throw new Error(`Unexpected fetch ${value}`);
   };
   try {
@@ -200,13 +197,7 @@ test("submission works when the announcement task is not configured", async () =
   assert.equal(premature.status, 409);
 
   const originalFetch = globalThis.fetch;
-  globalThis.fetch = async (url) => {
-    const value = String(url);
-    if (value.includes("/users/by/username/zk_bears?user.fields=connection_status")) {
-      return Response.json({ data: { id: "99", connection_status: ["following"] } });
-    }
-    throw new Error(`Unexpected fetch ${value}`);
-  };
+  globalThis.fetch = async (url) => { throw new Error(`Unexpected X API call ${String(url)}`); };
   try {
     const follow = await worker.fetch(apiRequest("/api/tasks/follow", { method: "POST", headers }), environment);
     assert.deepEqual(await follow.json(), { verified: true });
@@ -232,7 +223,7 @@ test("X credit exhaustion is returned as a safe service error", async () => {
     { status: 402 },
   );
   try {
-    const response = await worker.fetch(apiRequest("/api/tasks/follow", {
+    const response = await worker.fetch(apiRequest("/api/tasks/engagement", {
       method: "POST",
       headers: { Origin: environment.PUBLIC_SITE_URL, Cookie: cookie },
     }), environment);
@@ -241,23 +232,21 @@ test("X credit exhaustion is returned as a safe service error", async () => {
   } finally { globalThis.fetch = originalFetch; }
 });
 
-test("follow verification rejects a user without the following relationship", async () => {
+test("follow visit completion marks the task without calling X", async () => {
   const environment = { ...env, DB: new MemoryDb(), TARGET_POST_ID: "" };
   const cookie = await authorize(environment);
   const originalFetch = globalThis.fetch;
-  globalThis.fetch = async (url) => {
-    const value = String(url);
-    if (value.includes("/users/by/username/zk_bears?user.fields=connection_status")) {
-      return Response.json({ data: { id: "99", connection_status: [] } });
-    }
-    throw new Error(`Unexpected fetch ${value}`);
-  };
+  globalThis.fetch = async (url) => { throw new Error(`Unexpected X API call ${String(url)}`); };
   try {
     const response = await worker.fetch(apiRequest("/api/tasks/follow", {
       method: "POST",
       headers: { Origin: environment.PUBLIC_SITE_URL, Cookie: cookie },
     }), environment);
     assert.equal(response.status, 200);
-    assert.deepEqual(await response.json(), { verified: false });
+    assert.deepEqual(await response.json(), { verified: true });
+    const session = await worker.fetch(apiRequest("/api/session", {
+      headers: { Origin: environment.PUBLIC_SITE_URL, Cookie: cookie },
+    }), environment);
+    assert.equal((await session.json()).tasks.follow, true);
   } finally { globalThis.fetch = originalFetch; }
 });

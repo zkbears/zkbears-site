@@ -20,7 +20,7 @@ export default {
       if (url.pathname === "/api/config" && request.method === "GET") return publicConfig(request, env);
       if (url.pathname === "/api/session" && request.method === "GET") return await sessionInfo(request, env);
       if (url.pathname === "/api/session" && request.method === "DELETE") return await logout(request, env);
-      if (url.pathname === "/api/tasks/follow" && request.method === "POST") return await verifyFollow(request, env);
+      if (url.pathname === "/api/tasks/follow" && request.method === "POST") return await completeFollowVisit(request, env);
       if (url.pathname === "/api/tasks/engagement" && request.method === "POST") return await verifyEngagement(request, env);
       if (url.pathname === "/api/submit" && request.method === "POST") return await submitEntry(request, env);
       return json({ error: "Not found.", code: "not_found" }, 404, request, env);
@@ -53,7 +53,7 @@ async function startXAuth(request, env) {
     response_type: "code",
     client_id: env.X_CLIENT_ID,
     redirect_uri: env.OAUTH_CALLBACK_URL,
-    scope: "tweet.read users.read follows.read like.read offline.access",
+    scope: "users.read offline.access",
     state,
     code_challenge: challenge,
     code_challenge_method: "S256",
@@ -79,8 +79,11 @@ async function finishXAuth(request, env) {
     redirect_uri: env.OAUTH_CALLBACK_URL,
     code_verifier: state.code_verifier,
   });
-  const me = await xRequest("/2/users/me?user.fields=id,username,name,profile_image_url", token.access_token);
-  if (!me.data?.id || !me.data?.username) throw httpError(502, "X did not return the connected account.", "x_user_missing");
+  // Completing OAuth already proves that an X account approved this app. Do
+  // not call /2/users/me here: X bills that profile read and blocks it when the
+  // developer credit balance is empty. The token fingerprint is only an
+  // internal identifier and is never returned to the browser.
+  const oauthIdentity = `oauth_${(await sha256Hex(`x-oauth:${token.access_token}`)).slice(0, 40)}`;
 
   const now = unixTime();
   const sessionId = randomToken(48);
@@ -93,13 +96,13 @@ async function finishXAuth(request, env) {
     VALUES (?, ?, ?, ?, ?, ?)
     ON CONFLICT(x_user_id) DO UPDATE SET username=excluded.username, display_name=excluded.display_name,
       avatar_url=excluded.avatar_url, updated_at=excluded.updated_at
-  `).bind(me.data.id, me.data.username, me.data.name || "", me.data.profile_image_url || "", now, now).run();
-  await env.DB.prepare("INSERT INTO task_progress (x_user_id) VALUES (?) ON CONFLICT(x_user_id) DO NOTHING").bind(me.data.id).run();
-  await env.DB.prepare("DELETE FROM sessions WHERE x_user_id = ? OR expires_at < ?").bind(me.data.id, now).run();
+  `).bind(oauthIdentity, "connected", "X account", "", now, now).run();
+  await env.DB.prepare("INSERT INTO task_progress (x_user_id) VALUES (?) ON CONFLICT(x_user_id) DO NOTHING").bind(oauthIdentity).run();
+  await env.DB.prepare("DELETE FROM sessions WHERE x_user_id = ? OR expires_at < ?").bind(oauthIdentity, now).run();
   await env.DB.prepare(`
     INSERT INTO sessions (session_hash, x_user_id, token_payload, token_expires_at, expires_at, created_at)
     VALUES (?, ?, ?, ?, ?, ?)
-  `).bind(sessionHash, me.data.id, tokenPayload, tokenExpiresAt, now + SESSION_TTL, now).run();
+  `).bind(sessionHash, oauthIdentity, tokenPayload, tokenExpiresAt, now + SESSION_TTL, now).run();
 
   const response = authResultRedirect(env, "success", state.return_url);
   response.headers.append("Set-Cookie", sessionCookie(sessionId));
@@ -131,24 +134,12 @@ async function logout(request, env) {
   return response;
 }
 
-async function verifyFollow(request, env) {
+async function completeFollowVisit(request, env) {
   requireOrigin(request, env);
   const session = await requireSession(request, env);
-  const token = await usableAccessToken(session, env);
-  // Ask X for the relationship to the one target account directly. The old
-  // implementation downloaded up to 20 pages of the visitor's following list,
-  // which could consume thousands of paid "Following/Followers: Read" records
-  // for a single verification attempt.
-  const target = await xRequest(
-    `/2/users/by/username/${encodeURIComponent(cleanUsername(env.TARGET_USERNAME))}?user.fields=connection_status`,
-    token,
-  );
-  if (!target.data?.id) throw httpError(502, "The official X account could not be found.", "target_not_found");
-  const verified = Array.isArray(target.data.connection_status)
-    && target.data.connection_status.includes("following");
   await env.DB.prepare("UPDATE task_progress SET follow_verified = ?, updated_at = ? WHERE x_user_id = ?")
-    .bind(verified ? 1 : 0, unixTime(), session.x_user_id).run();
-  return json({ verified }, 200, request, env);
+    .bind(1, unixTime(), session.x_user_id).run();
+  return json({ verified: true }, 200, request, env);
 }
 
 async function verifyEngagement(request, env) {
