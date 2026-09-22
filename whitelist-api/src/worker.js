@@ -1,6 +1,7 @@
 const X_AUTHORIZE_URL = "https://x.com/i/oauth2/authorize";
 const X_TOKEN_URL = "https://api.x.com/2/oauth2/token";
-const COOKIE_NAME = "zkbears_whitelist_session";
+const COOKIE_NAME = "__Host-zkbears_whitelist_session";
+const LEGACY_COOKIE_NAME = "zkbears_whitelist_session";
 const OAUTH_STATE_TTL = 15 * 60;
 const SESSION_TTL = 30 * 24 * 60 * 60;
 
@@ -30,7 +31,7 @@ export default {
 };
 
 function validateEnvironment(env) {
-  const required = ["DB", "X_CLIENT_ID", "X_CLIENT_SECRET", "TOKEN_ENCRYPTION_KEY", "PUBLIC_SITE_URL", "OAUTH_CALLBACK_URL", "TARGET_USERNAME"];
+  const required = ["DB", "X_CLIENT_ID", "X_CLIENT_SECRET", "PUBLIC_SITE_URL", "OAUTH_CALLBACK_URL", "TARGET_USERNAME"];
   const missing = required.filter((name) => !env[name]);
   if (missing.length) throw httpError(500, `Missing server settings: ${missing.join(", ")}.`, "configuration_error");
 }
@@ -52,7 +53,7 @@ async function startXAuth(request, env) {
     response_type: "code",
     client_id: env.X_CLIENT_ID,
     redirect_uri: env.OAUTH_CALLBACK_URL,
-    scope: "users.read offline.access",
+    scope: "users.read",
     state,
     code_challenge: challenge,
     code_challenge_method: "S256",
@@ -87,9 +88,6 @@ async function finishXAuth(request, env) {
   const now = unixTime();
   const sessionId = randomToken(48);
   const sessionHash = await sha256Hex(sessionId);
-  const tokenPayload = await seal({ accessToken: token.access_token, refreshToken: token.refresh_token || "" }, env.TOKEN_ENCRYPTION_KEY);
-  const tokenExpiresAt = now + Math.max(60, Number(token.expires_in) || 7200);
-
   await env.DB.prepare(`
     INSERT INTO users (x_user_id, username, display_name, avatar_url, created_at, updated_at)
     VALUES (?, ?, ?, ?, ?, ?)
@@ -101,10 +99,11 @@ async function finishXAuth(request, env) {
   await env.DB.prepare(`
     INSERT INTO sessions (session_hash, x_user_id, token_payload, token_expires_at, expires_at, created_at)
     VALUES (?, ?, ?, ?, ?, ?)
-  `).bind(sessionHash, oauthIdentity, tokenPayload, tokenExpiresAt, now + SESSION_TTL, now).run();
+  `).bind(sessionHash, oauthIdentity, "", 0, now + SESSION_TTL, now).run();
 
   const response = authResultRedirect(env, "success", state.return_url);
   response.headers.append("Set-Cookie", sessionCookie(sessionId));
+  response.headers.append("Set-Cookie", clearCookie(LEGACY_COOKIE_NAME));
   return response;
 }
 
@@ -121,15 +120,23 @@ function publicConfig(request, env) {
 
 async function sessionInfo(request, env) {
   const session = await requireSession(request, env);
-  return json(publicSession(session), 200, request, env);
+  const response = json(publicSession(session), 200, request, env);
+  const jar = cookies(request);
+  if (!jar[COOKIE_NAME] && jar[LEGACY_COOKIE_NAME]) {
+    response.headers.append("Set-Cookie", sessionCookie(jar[LEGACY_COOKIE_NAME]));
+    response.headers.append("Set-Cookie", clearCookie(LEGACY_COOKIE_NAME));
+  }
+  return response;
 }
 
 async function logout(request, env) {
   requireOrigin(request, env);
-  const sessionId = cookies(request)[COOKIE_NAME];
+  const jar = cookies(request);
+  const sessionId = jar[COOKIE_NAME] || jar[LEGACY_COOKIE_NAME];
   if (sessionId) await env.DB.prepare("DELETE FROM sessions WHERE session_hash = ?").bind(await sha256Hex(sessionId)).run();
   const response = json({ ok: true }, 200, request, env);
-  response.headers.append("Set-Cookie", clearCookie());
+  response.headers.append("Set-Cookie", clearCookie(COOKIE_NAME));
+  response.headers.append("Set-Cookie", clearCookie(LEGACY_COOKIE_NAME));
   return response;
 }
 
@@ -180,7 +187,8 @@ async function submitEntry(request, env) {
 }
 
 async function requireSession(request, env) {
-  const sessionId = cookies(request)[COOKIE_NAME];
+  const jar = cookies(request);
+  const sessionId = jar[COOKIE_NAME] || jar[LEGACY_COOKIE_NAME];
   if (!sessionId) throw httpError(401, "Connect your X account first.", "not_authenticated");
   const row = await env.DB.prepare(`
     SELECT s.session_hash, s.x_user_id, s.token_payload, s.token_expires_at, s.expires_at,
@@ -241,10 +249,26 @@ function preflight(request, env) {
 }
 
 function json(payload, status, request, env) {
-  return new Response(JSON.stringify(payload), { status, headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store", ...cors(request, env) } });
+  return new Response(JSON.stringify(payload), { status, headers: {
+    "Content-Type": "application/json; charset=utf-8",
+    "Cache-Control": "no-store",
+    "Content-Security-Policy": "default-src 'none'; frame-ancestors 'none'",
+    "Permissions-Policy": "camera=(), microphone=(), geolocation=(), payment=()",
+    "Referrer-Policy": "no-referrer",
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+    ...cors(request, env),
+  } });
 }
 
-function redirect(location) { return new Response(null, { status: 302, headers: { Location: location, "Cache-Control": "no-store" } }); }
+function redirect(location) { return new Response(null, { status: 302, headers: {
+  Location: location,
+  "Cache-Control": "no-store",
+  "Content-Security-Policy": "default-src 'none'; frame-ancestors 'none'",
+  "Referrer-Policy": "no-referrer",
+  "X-Content-Type-Options": "nosniff",
+  "X-Frame-Options": "DENY",
+} }); }
 
 function authResultRedirect(env, result, returnTo = env.PUBLIC_SITE_URL) {
   const url = new URL(returnTo);
@@ -253,8 +277,8 @@ function authResultRedirect(env, result, returnTo = env.PUBLIC_SITE_URL) {
   return redirect(url.toString());
 }
 
-function sessionCookie(value) { return `${COOKIE_NAME}=${value}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=${SESSION_TTL}`; }
-function clearCookie() { return `${COOKIE_NAME}=; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0`; }
+function sessionCookie(value) { return `${COOKIE_NAME}=${value}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=${SESSION_TTL}`; }
+function clearCookie(name = COOKIE_NAME) { return `${name}=; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=0`; }
 
 function cookies(request) {
   const entries = (request.headers.get("Cookie") || "").split(";").map((value) => value.trim()).filter(Boolean).map((value) => {
@@ -276,27 +300,9 @@ function httpError(status, message, code) { const error = new Error(message); er
 
 function randomToken(size) { return base64Url(crypto.getRandomValues(new Uint8Array(size))); }
 function base64Url(bytes) { let binary = ""; for (const byte of bytes) binary += String.fromCharCode(byte); return btoa(binary).replaceAll("+", "-").replaceAll("/", "_").replaceAll("=", ""); }
-function fromBase64Url(value) { const text = value.replaceAll("-", "+").replaceAll("_", "/").padEnd(Math.ceil(value.length / 4) * 4, "="); return Uint8Array.from(atob(text), (character) => character.charCodeAt(0)); }
 async function sha256(value) { return new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value))); }
 async function sha256Base64Url(value) { return base64Url(await sha256(value)); }
 async function sha256Hex(value) { return [...await sha256(value)].map((byte) => byte.toString(16).padStart(2, "0")).join(""); }
-async function encryptionKey(secret) { return crypto.subtle.importKey("raw", await sha256(secret), "AES-GCM", false, ["encrypt", "decrypt"]); }
-
-async function seal(value, secret) {
-  const iv = crypto.getRandomValues(new Uint8Array(12));
-  const encrypted = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv }, await encryptionKey(secret), new TextEncoder().encode(JSON.stringify(value))));
-  const joined = new Uint8Array(iv.length + encrypted.length);
-  joined.set(iv); joined.set(encrypted, iv.length);
-  return base64Url(joined);
-}
-
-async function open(value, secret) {
-  try {
-    const joined = fromBase64Url(value);
-    const plain = await crypto.subtle.decrypt({ name: "AES-GCM", iv: joined.slice(0, 12) }, await encryptionKey(secret), joined.slice(12));
-    return JSON.parse(new TextDecoder().decode(plain));
-  } catch { return null; }
-}
 
 const BECH32_CHARSET = "qpzry9x8gf2tvdw0s3jn54khce6mua7l";
 const BECH32M_CONSTANT = 0x2bc830a3;
@@ -305,4 +311,4 @@ function polymod(values) { let checksum = 1; for (const value of values) { const
 function expandHrp(hrp) { return [...Array.from(hrp, (character) => character.charCodeAt(0) >>> 5), 0, ...Array.from(hrp, (character) => character.charCodeAt(0) & 31)]; }
 function validUnifiedAddress(value) { const input = value.trim(); if (input.length < 69 || input.length > 1000) return false; if (input !== input.toLowerCase() && input !== input.toUpperCase()) return false; const address = input.toLowerCase(); const separator = address.lastIndexOf("1"); if (separator !== 1 || address.slice(0, separator) !== "u" || separator + 7 > address.length) return false; const data = Array.from(address.slice(separator + 1), (character) => BECH32_CHARSET.indexOf(character)); return !data.some((part) => part < 0) && polymod([...expandHrp("u"), ...data]) === BECH32M_CONSTANT; }
 
-export const testables = { cleanUsername, validUnifiedAddress, seal, open, sha256Hex };
+export const testables = { cleanUsername, validUnifiedAddress, sha256Hex };
