@@ -111,8 +111,8 @@
           <div class="whitelist-intro">
             <p class="section-kicker">EARLY ACCESS</p>
             <h2 id="whitelist-title">JOIN<br />WHITELIST</h2>
-            <p id="whitelist-requirements">Complete all three verified steps to save your whitelist spot.</p>
-            <div class="progress" aria-live="polite"><strong id="progress-count">0 / 3</strong> COMPLETE</div>
+            <p id="whitelist-requirements">Complete all four steps in order to save your whitelist spot.</p>
+            <div class="progress" aria-live="polite"><strong id="progress-count">0 / 4</strong> COMPLETE</div>
           </div>
 
           <form class="task-list" id="whitelist-form" novalidate>
@@ -145,22 +145,22 @@
               <p class="task-status" data-task-status="follow" role="status"></p>
             </section>
 
-            <section class="task-card" data-step="quote" hidden>
+            <section class="task-card is-locked" data-step="engagement">
               <div class="task-copy">
                 <span class="task-number">TASK 02</span>
-                <h3>LIKE + QUOTE</h3>
-                <p>Like the announcement, quote it on X and then come back here for verification.</p>
+                <h3>LIKE + REPOST</h3>
+                <p>Open the announcement post, like and repost it, then come back here to complete this task.</p>
               </div>
               <div class="task-action">
-                <a class="task-link" data-open-task="quote" href="https://x.com/zk_bears" target="_blank" rel="noreferrer">OPEN TASK ↗</a>
-                <button class="task-check" type="button" data-check-task="quote" aria-pressed="false" aria-label="Verify like and quote task">✓</button>
+                <a class="task-link is-disabled" data-open-task="engagement" href="https://x.com/zk_bears" target="_blank" rel="noreferrer" aria-disabled="true" tabindex="-1">POST COMING SOON</a>
+                <button class="task-check" type="button" data-check-task="engagement" aria-pressed="false" aria-label="Like and repost task status" disabled></button>
               </div>
-              <p class="task-status" data-task-status="quote" role="status"></p>
+              <p class="task-status" data-task-status="engagement" role="status">Announcement post will be added soon.</p>
             </section>
 
             <section class="task-card is-locked" data-step="wallet">
               <div class="task-copy">
-                <span class="task-number" id="wallet-task-number">TASK 02</span>
+                <span class="task-number" id="wallet-task-number">TASK 03</span>
                 <label for="wallet-address">ZCASH WALLET ADDRESS</label>
                 <p>Use a Unified Address from Noir Wallet. <a href="https://www.zknoir.com/" target="_blank" rel="noreferrer">How to install Noir Wallet ↗</a></p>
               </div>

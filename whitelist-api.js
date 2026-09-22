@@ -46,7 +46,7 @@ export const whitelistApi = Object.freeze({
   completeFollowVisit() {
     return request("/api/tasks/follow", { method: "POST", body: "{}" });
   },
-  verifyEngagement() {
+  completeEngagementVisit() {
     return request("/api/tasks/engagement", { method: "POST", body: "{}" });
   },
   submit(walletAddress) {

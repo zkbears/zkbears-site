@@ -3,6 +3,7 @@ import { validUnifiedAddress } from "./zcash-address.js";
 import { WhitelistApiError, whitelistApi } from "./whitelist-api.js";
 
 const FOLLOW_VISIT_KEY_PREFIX = "zkbears_follow_task_opened";
+const ENGAGEMENT_VISIT_KEY_PREFIX = "zkbears_engagement_task_opened";
 
 const state = {
   user: null,
@@ -24,9 +25,10 @@ const elements = {
   followOpen: document.querySelector('[data-open-task="follow"]'),
   followCard: document.querySelector('[data-step="follow"]'),
   followStatus: document.querySelector('[data-task-status="follow"]'),
-  engagementButton: document.querySelector('[data-check-task="quote"]'),
-  engagementStatus: document.querySelector('[data-task-status="quote"]'),
-  engagementCard: document.querySelector('[data-step="quote"]'),
+  engagementButton: document.querySelector('[data-check-task="engagement"]'),
+  engagementOpen: document.querySelector('[data-open-task="engagement"]'),
+  engagementStatus: document.querySelector('[data-task-status="engagement"]'),
+  engagementCard: document.querySelector('[data-step="engagement"]'),
   requirements: document.querySelector("#whitelist-requirements"),
   walletTaskNumber: document.querySelector("#wallet-task-number"),
   walletCard: document.querySelector('[data-step="wallet"]'),
@@ -48,6 +50,7 @@ function errorMessage(error, fallback) {
     state.user = null;
     state.authenticated = false;
     state.follow = false;
+    state.engagement = false;
     state.wallet = false;
     return "Your X session expired. Connect X again.";
   }
@@ -76,9 +79,24 @@ function hasPendingFollowVisit() {
   try { return localStorage.getItem(followVisitKey()) === "1"; } catch { return false; }
 }
 
+function engagementVisitKey() {
+  return state.user?.id ? `${ENGAGEMENT_VISIT_KEY_PREFIX}:${state.user.id}` : ENGAGEMENT_VISIT_KEY_PREFIX;
+}
+
+function rememberEngagementVisit() {
+  try { localStorage.setItem(engagementVisitKey(), "1"); } catch { /* storage can be unavailable */ }
+}
+
+function forgetEngagementVisit() {
+  try { localStorage.removeItem(engagementVisitKey()); } catch { /* storage can be unavailable */ }
+}
+
+function hasPendingEngagementVisit() {
+  try { return localStorage.getItem(engagementVisitKey()) === "1"; } catch { return false; }
+}
+
 function render() {
-  const requiredSteps = [state.authenticated, state.follow, state.wallet];
-  if (state.engagementConfigured) requiredSteps.splice(2, 0, state.engagement);
+  const requiredSteps = [state.authenticated, state.follow, state.engagement, state.wallet];
   const completed = requiredSteps.filter(Boolean).length;
   const total = requiredSteps.length;
   elements.progress.textContent = `${completed} / ${total}`;
@@ -87,28 +105,32 @@ function render() {
   elements.connectX.textContent = state.authenticated ? `${connectedXLabel()} ✓` : "CONNECT X ↗";
   elements.disconnectX.hidden = !state.authenticated;
   const followUnlocked = state.authenticated;
-  const walletUnlocked = state.follow;
+  const engagementUnlocked = state.follow && state.engagementConfigured;
+  const walletUnlocked = state.engagement && state.engagementConfigured;
   elements.followButton.disabled = true;
   elements.followButton.textContent = state.follow ? "✓" : "";
   elements.followOpen.classList.toggle("is-disabled", !followUnlocked);
   elements.followOpen.setAttribute("aria-disabled", String(!followUnlocked));
   elements.followOpen.tabIndex = followUnlocked ? 0 : -1;
   elements.followCard.classList.toggle("is-locked", !followUnlocked);
-  elements.engagementButton.disabled = !state.engagementConfigured || !state.authenticated || state.engagement;
+  elements.engagementButton.disabled = true;
+  elements.engagementButton.textContent = state.engagement ? "✓" : "";
+  elements.engagementOpen.textContent = state.engagementConfigured ? "OPEN TASK ↗" : "POST COMING SOON";
+  elements.engagementOpen.classList.toggle("is-disabled", !engagementUnlocked);
+  elements.engagementOpen.setAttribute("aria-disabled", String(!engagementUnlocked));
+  elements.engagementOpen.tabIndex = engagementUnlocked ? 0 : -1;
+  elements.engagementCard.classList.toggle("is-locked", !engagementUnlocked);
   elements.walletInput.disabled = !walletUnlocked || state.submitted;
   elements.noirButton.disabled = !walletUnlocked || state.wallet || state.submitted;
   elements.noirButton.textContent = state.wallet ? "NOIR CONNECTED" : "CONNECT NOIR";
   elements.walletCard.classList.toggle("is-locked", !walletUnlocked);
-  elements.engagementCard.hidden = !state.engagementConfigured;
-  elements.requirements.textContent = state.engagementConfigured
-    ? "Complete all four verified steps to save your whitelist spot."
-    : "Complete all three verified steps to save your whitelist spot.";
-  elements.walletTaskNumber.textContent = state.engagementConfigured ? "TASK 03" : "TASK 02";
+  elements.requirements.textContent = "Complete all four steps in order to save your whitelist spot.";
+  elements.walletTaskNumber.textContent = "TASK 03";
 
   const steps = {
     handle: state.authenticated,
     follow: state.follow,
-    quote: state.engagement,
+    engagement: state.engagement,
     wallet: state.wallet,
   };
   for (const [name, complete] of Object.entries(steps)) {
@@ -136,7 +158,12 @@ function applySession(session) {
     forgetFollowVisit();
     status(elements.followStatus, "X profile opened. Task complete.");
   }
-  if (state.engagement) status(elements.engagementStatus, "Like and quote verified.");
+  if (state.engagement) {
+    forgetEngagementVisit();
+    status(elements.engagementStatus, "Announcement post opened. Task complete.");
+  } else if (!state.engagementConfigured) {
+    status(elements.engagementStatus, "Announcement post will be added soon.");
+  }
   if (state.wallet) status(elements.walletStatus, "Valid Unified Address.");
   render();
 }
@@ -163,6 +190,7 @@ elements.disconnectX.addEventListener("click", async () => {
   elements.disconnectX.disabled = true;
   try { await whitelistApi.logout(); } catch { /* local state is cleared either way */ }
   forgetFollowVisit();
+  forgetEngagementVisit();
   Object.assign(state, {
     user: null,
     authenticated: false,
@@ -209,24 +237,49 @@ async function completePendingFollowVisit() {
   }
 }
 
-window.addEventListener("focus", () => { void completePendingFollowVisit(); });
 document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "visible") void completePendingFollowVisit();
+  if (document.visibilityState === "visible") void completePendingVisits();
 });
 
-elements.engagementButton.addEventListener("click", async () => {
-  elements.engagementButton.disabled = true;
-  status(elements.engagementStatus, "Checking like and quote…");
-  try {
-    const result = await whitelistApi.verifyEngagement();
-    state.engagement = Boolean(result.verified);
-    const missing = [!result.liked && "like", !result.quoted && "quote"].filter(Boolean).join(" + ");
-    status(elements.engagementStatus, state.engagement ? "Like and quote verified." : `Still missing: ${missing}.`, !state.engagement);
-  } catch (error) {
-    status(elements.engagementStatus, errorMessage(error, "Like and quote verification failed."), true);
+elements.engagementOpen.addEventListener("click", (event) => {
+  if (!state.engagementConfigured) {
+    event.preventDefault();
+    status(elements.engagementStatus, "Announcement post will be added soon.");
+    return;
   }
-  render();
+  if (!state.follow) {
+    event.preventDefault();
+    status(elements.engagementStatus, "Complete the follow task first.", true);
+    return;
+  }
+  rememberEngagementVisit();
+  status(elements.engagementStatus, "Announcement opened. Like and repost it, then return here.");
 });
+
+let completingEngagementVisit = false;
+async function completePendingEngagementVisit() {
+  if (completingEngagementVisit || !state.follow || !state.engagementConfigured || state.engagement || !hasPendingEngagementVisit()) return;
+  completingEngagementVisit = true;
+  status(elements.engagementStatus, "Completing task…");
+  try {
+    const result = await whitelistApi.completeEngagementVisit();
+    state.engagement = Boolean(result.verified);
+    if (state.engagement) forgetEngagementVisit();
+    status(elements.engagementStatus, state.engagement ? "Announcement post opened. Task complete." : "Open the announcement post to complete this task.", !state.engagement);
+  } catch (error) {
+    status(elements.engagementStatus, errorMessage(error, "Could not complete the task. Return to this page and try again."), true);
+  } finally {
+    completingEngagementVisit = false;
+    render();
+  }
+}
+
+async function completePendingVisits() {
+  await completePendingFollowVisit();
+  await completePendingEngagementVisit();
+}
+
+window.addEventListener("focus", () => { void completePendingVisits(); });
 
 elements.walletInput.addEventListener("input", () => {
   state.walletAddress = elements.walletInput.value.trim();
@@ -245,8 +298,8 @@ elements.walletInput.addEventListener("input", () => {
 });
 
 elements.noirButton.addEventListener("click", async () => {
-  if (!state.follow) {
-    status(elements.walletStatus, "Verify the X follow task first.", true);
+  if (!state.engagement) {
+    status(elements.walletStatus, "Complete the Like + Repost task first.", true);
     return;
   }
   status(elements.walletStatus, "Confirm the connection inside Noir Wallet…");
@@ -283,15 +336,17 @@ async function restore() {
     const config = await whitelistApi.config();
     state.engagementConfigured = Boolean(config.engagementConfigured);
     document.querySelector('[data-open-task="follow"]').href = config.profileUrl;
-    document.querySelector('[data-open-task="quote"]').href = config.announcementUrl;
+    elements.engagementOpen.href = config.announcementUrl;
     if (!state.engagementConfigured) {
       state.engagement = false;
+      status(elements.engagementStatus, "Announcement post will be added soon.");
+    } else {
       status(elements.engagementStatus);
     }
   } catch { /* the task links keep their safe profile fallback */ }
   try {
     applySession(await whitelistApi.session());
-    await completePendingFollowVisit();
+    await completePendingVisits();
   } catch (error) {
     if (!(error instanceof WhitelistApiError && error.status === 401)) {
       status(elements.xStatus, errorMessage(error, "Could not restore the X session."), true);

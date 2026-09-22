@@ -153,17 +153,12 @@ test("complete authentication, verification and submission flow", async () => {
   assert.equal(premature.status, 409);
 
   const originalFetch = globalThis.fetch;
-  globalThis.fetch = async (url) => {
-    const value = String(url);
-    if (value.includes("/liking_users")) return Response.json({ data: [{ id: sessionPayload.user.id }] });
-    if (value.includes("/quote_tweets")) return Response.json({ data: [{ author_id: sessionPayload.user.id }] });
-    throw new Error(`Unexpected fetch ${value}`);
-  };
+  globalThis.fetch = async (url) => { throw new Error(`Unexpected X API call ${String(url)}`); };
   try {
     const follow = await worker.fetch(apiRequest("/api/tasks/follow", { method: "POST", headers }), env);
     assert.deepEqual(await follow.json(), { verified: true });
     const engagement = await worker.fetch(apiRequest("/api/tasks/engagement", { method: "POST", headers }), env);
-    assert.deepEqual(await engagement.json(), { liked: true, quoted: true, verified: true });
+    assert.deepEqual(await engagement.json(), { verified: true });
   } finally { globalThis.fetch = originalFetch; }
 
   const walletAddress = encodeBech32m("u");
@@ -182,7 +177,7 @@ test("API rejects missing session and foreign origins", async () => {
 });
 
 
-test("submission works when the announcement task is not configured", async () => {
+test("announcement task blocks completion until a post is configured", async () => {
   const environment = { ...env, DB: new MemoryDb(), TARGET_POST_ID: "" };
   const config = await worker.fetch(apiRequest("/api/config"), environment);
   assert.equal((await config.json()).engagementConfigured, false);
@@ -194,7 +189,8 @@ test("submission works when the announcement task is not configured", async () =
     headers: { ...headers, "Content-Type": "application/json" },
     body: JSON.stringify({ walletAddress: prematureWallet }),
   }), environment);
-  assert.equal(premature.status, 409);
+  assert.equal(premature.status, 503);
+  assert.equal((await premature.json()).code, "post_not_configured");
 
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async (url) => { throw new Error(`Unexpected X API call ${String(url)}`); };
@@ -203,32 +199,33 @@ test("submission works when the announcement task is not configured", async () =
     assert.deepEqual(await follow.json(), { verified: true });
   } finally { globalThis.fetch = originalFetch; }
 
-  const walletAddress = encodeBech32m("u");
+  const engagement = await worker.fetch(apiRequest("/api/tasks/engagement", { method: "POST", headers }), environment);
+  assert.equal(engagement.status, 503);
+  assert.equal((await engagement.json()).code, "post_not_configured");
+
   const submitted = await worker.fetch(apiRequest("/api/submit", {
     method: "POST",
     headers: { ...headers, "Content-Type": "application/json" },
-    body: JSON.stringify({ walletAddress }),
+    body: JSON.stringify({ walletAddress: encodeBech32m("u") }),
   }), environment);
-  assert.equal(submitted.status, 200);
-  assert.deepEqual(await submitted.json(), { saved: true });
+  assert.equal(submitted.status, 503);
+  assert.equal((await submitted.json()).code, "post_not_configured");
 });
 
-
-test("X credit exhaustion is returned as a safe service error", async () => {
+test("engagement completion requires follow and never calls the paid X API", async () => {
   const environment = { ...env, DB: new MemoryDb() };
   const cookie = await authorize(environment);
+  const headers = { Origin: environment.PUBLIC_SITE_URL, Cookie: cookie };
   const originalFetch = globalThis.fetch;
-  globalThis.fetch = async () => Response.json(
-    { title: "CreditsDepleted", detail: "Credits depleted" },
-    { status: 402 },
-  );
+  globalThis.fetch = async (url) => { throw new Error(`Unexpected X API call ${String(url)}`); };
   try {
-    const response = await worker.fetch(apiRequest("/api/tasks/engagement", {
-      method: "POST",
-      headers: { Origin: environment.PUBLIC_SITE_URL, Cookie: cookie },
-    }), environment);
-    assert.equal(response.status, 503);
-    assert.equal((await response.json()).code, "x_api_credits_depleted");
+    const premature = await worker.fetch(apiRequest("/api/tasks/engagement", { method: "POST", headers }), environment);
+    assert.equal(premature.status, 409);
+    assert.equal((await premature.json()).code, "follow_incomplete");
+    await worker.fetch(apiRequest("/api/tasks/follow", { method: "POST", headers }), environment);
+    const completed = await worker.fetch(apiRequest("/api/tasks/engagement", { method: "POST", headers }), environment);
+    assert.equal(completed.status, 200);
+    assert.deepEqual(await completed.json(), { verified: true });
   } finally { globalThis.fetch = originalFetch; }
 });
 

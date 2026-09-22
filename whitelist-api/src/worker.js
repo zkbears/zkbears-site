@@ -1,6 +1,5 @@
 const X_AUTHORIZE_URL = "https://x.com/i/oauth2/authorize";
 const X_TOKEN_URL = "https://api.x.com/2/oauth2/token";
-const X_API_URL = "https://api.x.com";
 const COOKIE_NAME = "zkbears_whitelist_session";
 const OAUTH_STATE_TTL = 15 * 60;
 const SESSION_TTL = 30 * 24 * 60 * 60;
@@ -21,7 +20,7 @@ export default {
       if (url.pathname === "/api/session" && request.method === "GET") return await sessionInfo(request, env);
       if (url.pathname === "/api/session" && request.method === "DELETE") return await logout(request, env);
       if (url.pathname === "/api/tasks/follow" && request.method === "POST") return await completeFollowVisit(request, env);
-      if (url.pathname === "/api/tasks/engagement" && request.method === "POST") return await verifyEngagement(request, env);
+      if (url.pathname === "/api/tasks/engagement" && request.method === "POST") return await completeEngagementVisit(request, env);
       if (url.pathname === "/api/submit" && request.method === "POST") return await submitEntry(request, env);
       return json({ error: "Not found.", code: "not_found" }, 404, request, env);
     } catch (error) {
@@ -142,20 +141,17 @@ async function completeFollowVisit(request, env) {
   return json({ verified: true }, 200, request, env);
 }
 
-async function verifyEngagement(request, env) {
+async function completeEngagementVisit(request, env) {
   requireOrigin(request, env);
   const session = await requireSession(request, env);
   const postId = String(env.TARGET_POST_ID || "").trim();
   if (!/^\d+$/.test(postId)) throw httpError(503, "The announcement post has not been configured yet.", "post_not_configured");
-  const token = await usableAccessToken(session, env);
-  const [liked, quoted] = await Promise.all([
-    findInPages(`/2/tweets/${postId}/liking_users?max_results=100`, token, (user) => user.id === session.x_user_id),
-    findInPages(`/2/tweets/${postId}/quote_tweets?max_results=100&tweet.fields=author_id`, token, (post) => post.author_id === session.x_user_id),
-  ]);
-  const verified = liked && quoted;
+  const progress = await env.DB.prepare("SELECT follow_verified, engagement_verified FROM task_progress WHERE x_user_id = ?")
+    .bind(session.x_user_id).first();
+  if (!progress?.follow_verified) throw httpError(409, "Complete the follow task first.", "follow_incomplete");
   await env.DB.prepare("UPDATE task_progress SET engagement_verified = ?, updated_at = ? WHERE x_user_id = ?")
-    .bind(verified ? 1 : 0, unixTime(), session.x_user_id).run();
-  return json({ liked, quoted, verified }, 200, request, env);
+    .bind(1, unixTime(), session.x_user_id).run();
+  return json({ verified: true }, 200, request, env);
 }
 
 async function submitEntry(request, env) {
@@ -167,9 +163,11 @@ async function submitEntry(request, env) {
 
   const progress = await env.DB.prepare("SELECT follow_verified, engagement_verified FROM task_progress WHERE x_user_id = ?")
     .bind(session.x_user_id).first();
-  const engagementRequired = /^\d+$/.test(String(env.TARGET_POST_ID || "").trim());
-  if (!progress?.follow_verified || (engagementRequired && !progress?.engagement_verified)) {
-    throw httpError(409, "Complete and verify the available X tasks first.", "tasks_incomplete");
+  if (!/^\d+$/.test(String(env.TARGET_POST_ID || "").trim())) {
+    throw httpError(503, "The announcement post has not been configured yet.", "post_not_configured");
+  }
+  if (!progress?.follow_verified || !progress?.engagement_verified) {
+    throw httpError(409, "Complete all X tasks in order first.", "tasks_incomplete");
   }
   try {
     await env.DB.prepare("UPDATE task_progress SET wallet_address = ?, submitted_at = ?, updated_at = ? WHERE x_user_id = ?")
@@ -196,20 +194,6 @@ async function requireSession(request, env) {
   return row;
 }
 
-async function usableAccessToken(session, env) {
-  const tokens = await open(session.token_payload, env.TOKEN_ENCRYPTION_KEY);
-  if (!tokens?.accessToken) throw httpError(401, "Your X session is invalid. Connect again.", "session_invalid");
-  if (session.token_expires_at > unixTime() + 60) return tokens.accessToken;
-  if (!tokens.refreshToken) throw httpError(401, "Your X session expired. Connect again.", "session_expired");
-
-  const refreshed = await tokenRequest(env, { grant_type: "refresh_token", refresh_token: tokens.refreshToken });
-  const payload = await seal({ accessToken: refreshed.access_token, refreshToken: refreshed.refresh_token || tokens.refreshToken }, env.TOKEN_ENCRYPTION_KEY);
-  const expiresAt = unixTime() + Math.max(60, Number(refreshed.expires_in) || 7200);
-  await env.DB.prepare("UPDATE sessions SET token_payload = ?, token_expires_at = ? WHERE session_hash = ?")
-    .bind(payload, expiresAt, session.session_hash).run();
-  return refreshed.access_token;
-}
-
 async function tokenRequest(env, fields) {
   const response = await fetch(X_TOKEN_URL, {
     method: "POST",
@@ -222,32 +206,6 @@ async function tokenRequest(env, fields) {
   const data = await safeJson(response);
   if (!response.ok || !data.access_token) throw httpError(502, data.error_description || "X token exchange failed.", "x_token_error");
   return data;
-}
-
-async function xRequest(path, accessToken) {
-  const response = await fetch(`${X_API_URL}${path}`, { headers: { Authorization: `Bearer ${accessToken}` } });
-  const data = await safeJson(response);
-  if (!response.ok) {
-    const apiMessage = [data.title, data.detail, data.reason].filter(Boolean).join(" ");
-    if (/credit.*deplet|deplet.*credit/i.test(apiMessage)) {
-      throw httpError(503, "X API credits are empty. The site owner must add credits in the X Developer Console.", "x_api_credits_depleted");
-    }
-    const status = response.status === 429 ? 429 : 502;
-    throw httpError(status, data.detail || data.title || "X API verification failed.", response.status === 429 ? "x_rate_limited" : "x_api_error");
-  }
-  return data;
-}
-
-async function findInPages(path, token, match, maxPages = 20) {
-  let next = "";
-  for (let page = 0; page < maxPages; page += 1) {
-    const separator = path.includes("?") ? "&" : "?";
-    const result = await xRequest(`${path}${next ? `${separator}pagination_token=${encodeURIComponent(next)}` : ""}`, token);
-    if ((result.data || []).some(match)) return true;
-    next = result.meta?.next_token || "";
-    if (!next) return false;
-  }
-  return false;
 }
 
 function publicSession(session) {
