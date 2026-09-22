@@ -155,8 +155,9 @@ test("complete authentication, verification and submission flow", async () => {
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async (url) => {
     const value = String(url);
-    if (value.includes("/users/by/username/zk_bears")) return Response.json({ data: { id: "99" } });
-    if (value.includes("/users/42/following")) return Response.json({ data: [{ id: "99" }] });
+    if (value.includes("/users/by/username/zk_bears?user.fields=connection_status")) {
+      return Response.json({ data: { id: "99", connection_status: ["following"] } });
+    }
     if (value.includes("/liking_users")) return Response.json({ data: [{ id: "42" }] });
     if (value.includes("/quote_tweets")) return Response.json({ data: [{ author_id: "42" }] });
     throw new Error(`Unexpected fetch ${value}`);
@@ -201,8 +202,9 @@ test("submission works when the announcement task is not configured", async () =
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async (url) => {
     const value = String(url);
-    if (value.includes("/users/by/username/zk_bears")) return Response.json({ data: { id: "99" } });
-    if (value.includes("/users/42/following")) return Response.json({ data: [{ id: "99" }] });
+    if (value.includes("/users/by/username/zk_bears?user.fields=connection_status")) {
+      return Response.json({ data: { id: "99", connection_status: ["following"] } });
+    }
     throw new Error(`Unexpected fetch ${value}`);
   };
   try {
@@ -236,5 +238,26 @@ test("X credit exhaustion is returned as a safe service error", async () => {
     }), environment);
     assert.equal(response.status, 503);
     assert.equal((await response.json()).code, "x_api_credits_depleted");
+  } finally { globalThis.fetch = originalFetch; }
+});
+
+test("follow verification rejects a user without the following relationship", async () => {
+  const environment = { ...env, DB: new MemoryDb(), TARGET_POST_ID: "" };
+  const cookie = await authorize(environment);
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    const value = String(url);
+    if (value.includes("/users/by/username/zk_bears?user.fields=connection_status")) {
+      return Response.json({ data: { id: "99", connection_status: [] } });
+    }
+    throw new Error(`Unexpected fetch ${value}`);
+  };
+  try {
+    const response = await worker.fetch(apiRequest("/api/tasks/follow", {
+      method: "POST",
+      headers: { Origin: environment.PUBLIC_SITE_URL, Cookie: cookie },
+    }), environment);
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), { verified: false });
   } finally { globalThis.fetch = originalFetch; }
 });

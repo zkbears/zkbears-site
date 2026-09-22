@@ -50,7 +50,7 @@ function errorMessage(error, fallback) {
     return "Your X session expired. Connect X again.";
   }
   if (error instanceof WhitelistApiError && error.code === "x_api_credits_depleted") {
-    return "Follow verification is temporarily unavailable. Please try again later.";
+    return "Follow check is paused because the site's X API credits are empty.";
   }
   return error?.message || fallback;
 }

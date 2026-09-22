@@ -135,12 +135,17 @@ async function verifyFollow(request, env) {
   requireOrigin(request, env);
   const session = await requireSession(request, env);
   const token = await usableAccessToken(session, env);
-  const target = await xRequest(`/2/users/by/username/${encodeURIComponent(cleanUsername(env.TARGET_USERNAME))}`, token);
-  if (!target.data?.id) throw httpError(502, "The official X account could not be found.", "target_not_found");
-  const verified = await findInPages(
-    `/2/users/${encodeURIComponent(session.x_user_id)}/following?max_results=1000`, token,
-    (user) => user.id === target.data.id,
+  // Ask X for the relationship to the one target account directly. The old
+  // implementation downloaded up to 20 pages of the visitor's following list,
+  // which could consume thousands of paid "Following/Followers: Read" records
+  // for a single verification attempt.
+  const target = await xRequest(
+    `/2/users/by/username/${encodeURIComponent(cleanUsername(env.TARGET_USERNAME))}?user.fields=connection_status`,
+    token,
   );
+  if (!target.data?.id) throw httpError(502, "The official X account could not be found.", "target_not_found");
+  const verified = Array.isArray(target.data.connection_status)
+    && target.data.connection_status.includes("following");
   await env.DB.prepare("UPDATE task_progress SET follow_verified = ?, updated_at = ? WHERE x_user_id = ?")
     .bind(verified ? 1 : 0, unixTime(), session.x_user_id).run();
   return json({ verified }, 200, request, env);
@@ -234,7 +239,7 @@ async function xRequest(path, accessToken) {
   if (!response.ok) {
     const apiMessage = [data.title, data.detail, data.reason].filter(Boolean).join(" ");
     if (/credit.*deplet|deplet.*credit/i.test(apiMessage)) {
-      throw httpError(503, "X verification is temporarily unavailable.", "x_api_credits_depleted");
+      throw httpError(503, "X API credits are empty. The site owner must add credits in the X Developer Console.", "x_api_credits_depleted");
     }
     const status = response.status === 429 ? 429 : 502;
     throw httpError(status, data.detail || data.title || "X API verification failed.", response.status === 429 ? "x_rate_limited" : "x_api_error");
