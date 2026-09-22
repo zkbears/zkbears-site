@@ -171,8 +171,9 @@ async function submitEntry(request, env) {
 
   const progress = await env.DB.prepare("SELECT follow_verified, engagement_verified FROM task_progress WHERE x_user_id = ?")
     .bind(session.x_user_id).first();
-  if (!progress?.follow_verified || !progress?.engagement_verified) {
-    throw httpError(409, "Complete and verify the X tasks first.", "tasks_incomplete");
+  const engagementRequired = /^\d+$/.test(String(env.TARGET_POST_ID || "").trim());
+  if (!progress?.follow_verified || (engagementRequired && !progress?.engagement_verified)) {
+    throw httpError(409, "Complete and verify the available X tasks first.", "tasks_incomplete");
   }
   try {
     await env.DB.prepare("UPDATE task_progress SET wallet_address = ?, submitted_at = ?, updated_at = ? WHERE x_user_id = ?")

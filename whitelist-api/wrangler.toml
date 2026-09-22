@@ -1,11 +1,12 @@
 name = "zkbears-whitelist-api"
 main = "src/worker.js"
 compatibility_date = "2026-09-01"
+routes = [{ pattern = "api.zkbears.xyz", custom_domain = true }]
 
 [[d1_databases]]
 binding = "DB"
 database_name = "zkbears-whitelist"
-database_id = "REPLACE_WITH_NEW_D1_DATABASE_ID"
+database_id = "84b1fba7-14a5-4185-84fe-a282adcd7bd3"
 
 [vars]
 PUBLIC_SITE_URL = "https://zkbears.xyz"

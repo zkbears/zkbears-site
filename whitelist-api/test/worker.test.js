@@ -84,12 +84,12 @@ function encodeBech32m(hrp, payloadLength = 70) {
   return `${hrp}1${[...data, ...checksum].map((part) => charset[part]).join("")}`;
 }
 
-async function authorize() {
-  const start = await worker.fetch(apiRequest("/auth/x/start?return_to=https%3A%2F%2Fzkbears.xyz%2F"), env);
+async function authorize(environment = env) {
+  const start = await worker.fetch(apiRequest("/auth/x/start?return_to=https%3A%2F%2Fzkbears.xyz%2F"), environment);
   assert.equal(start.status, 302);
   const authorizeUrl = new URL(start.headers.get("Location"));
   assert.equal(authorizeUrl.origin, "https://x.com");
-  assert.equal(authorizeUrl.searchParams.get("client_id"), env.X_CLIENT_ID);
+  assert.equal(authorizeUrl.searchParams.get("client_id"), environment.X_CLIENT_ID);
   assert.match(authorizeUrl.searchParams.get("scope"), /offline\.access/);
   const state = authorizeUrl.searchParams.get("state");
 
@@ -104,7 +104,7 @@ async function authorize() {
     throw new Error(`Unexpected fetch ${value}`);
   };
   try {
-    const callback = await worker.fetch(apiRequest(`/auth/x/callback?code=fresh-code&state=${encodeURIComponent(state)}`), env);
+    const callback = await worker.fetch(apiRequest(`/auth/x/callback?code=fresh-code&state=${encodeURIComponent(state)}`), environment);
     assert.equal(callback.status, 302);
     assert.equal(new URL(callback.headers.get("Location")).searchParams.get("x_auth"), "success");
     const cookie = callback.headers.get("Set-Cookie");
@@ -173,4 +173,33 @@ test("API rejects missing session and foreign origins", async () => {
   assert.equal(missing.status, 401);
   const foreign = await worker.fetch(apiRequest("/api/tasks/follow", { method: "POST", headers: { Origin: "https://evil.example" } }), env);
   assert.equal(foreign.status, 403);
+});
+
+
+test("submission works when the announcement task is not configured", async () => {
+  const environment = { ...env, DB: new MemoryDb(), TARGET_POST_ID: "" };
+  const config = await worker.fetch(apiRequest("/api/config"), environment);
+  assert.equal((await config.json()).engagementConfigured, false);
+  const cookie = await authorize(environment);
+  const headers = { Origin: environment.PUBLIC_SITE_URL, Cookie: cookie };
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    const value = String(url);
+    if (value.includes("/users/by/username/zk_bears")) return Response.json({ data: { id: "99" } });
+    if (value.includes("/users/42/following")) return Response.json({ data: [{ id: "99" }] });
+    throw new Error(`Unexpected fetch ${value}`);
+  };
+  try {
+    const follow = await worker.fetch(apiRequest("/api/tasks/follow", { method: "POST", headers }), environment);
+    assert.deepEqual(await follow.json(), { verified: true });
+  } finally { globalThis.fetch = originalFetch; }
+
+  const walletAddress = encodeBech32m("u");
+  const submitted = await worker.fetch(apiRequest("/api/submit", {
+    method: "POST",
+    headers: { ...headers, "Content-Type": "application/json" },
+    body: JSON.stringify({ walletAddress }),
+  }), environment);
+  assert.equal(submitted.status, 200);
+  assert.deepEqual(await submitted.json(), { saved: true });
 });

@@ -337,6 +337,7 @@ h2 { margin-bottom: 0; font-size: clamp(48px, 6vw, 78px); line-height: .9; lette
   box-shadow: 8px 8px 0 var(--shadow);
 }
 .task-card.is-complete { background: #dff2b8; }
+.task-card[hidden] { display: none; }
 .task-number { display: block; margin-bottom: 7px; color: var(--blue); font-size: 14px; font-weight: 700; letter-spacing: .1em; }
 .task-copy h3, .task-copy label { display: block; margin: 0 0 7px; font-size: 24px; font-weight: 700; }
 .task-copy p { max-width: 610px; margin: 0; font-family: inherit; font-size: 14px; line-height: 1.45; }

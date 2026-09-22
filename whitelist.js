@@ -7,6 +7,7 @@ const state = {
   authenticated: false,
   follow: false,
   engagement: false,
+  engagementConfigured: false,
   wallet: false,
   walletAddress: "",
   submitted: false,
@@ -21,6 +22,9 @@ const elements = {
   followStatus: document.querySelector('[data-task-status="follow"]'),
   engagementButton: document.querySelector('[data-check-task="quote"]'),
   engagementStatus: document.querySelector('[data-task-status="quote"]'),
+  engagementCard: document.querySelector('[data-step="quote"]'),
+  requirements: document.querySelector("#whitelist-requirements"),
+  walletTaskNumber: document.querySelector("#wallet-task-number"),
   walletInput: document.querySelector("#wallet-address"),
   walletStatus: document.querySelector("#wallet-status"),
   noirButton: document.querySelector("#use-noir"),
@@ -44,14 +48,22 @@ function errorMessage(error, fallback) {
 }
 
 function render() {
-  const completed = [state.authenticated, state.follow, state.engagement, state.wallet].filter(Boolean).length;
-  elements.progress.textContent = `${completed} / 4`;
-  elements.submit.disabled = completed !== 4 || state.submitted;
+  const requiredSteps = [state.authenticated, state.follow, state.wallet];
+  if (state.engagementConfigured) requiredSteps.splice(2, 0, state.engagement);
+  const completed = requiredSteps.filter(Boolean).length;
+  const total = requiredSteps.length;
+  elements.progress.textContent = `${completed} / ${total}`;
+  elements.submit.disabled = completed !== total || state.submitted;
   elements.submit.textContent = state.submitted ? "SPOT SAVED ✓" : "SAVE MY SPOT";
   elements.connectX.textContent = state.authenticated ? `@${state.user.username} ✓` : "CONNECT X ↗";
   elements.disconnectX.hidden = !state.authenticated;
   elements.followButton.disabled = !state.authenticated || state.follow;
-  elements.engagementButton.disabled = !state.authenticated || state.engagement;
+  elements.engagementButton.disabled = !state.engagementConfigured || !state.authenticated || state.engagement;
+  elements.engagementCard.hidden = !state.engagementConfigured;
+  elements.requirements.textContent = state.engagementConfigured
+    ? "Complete all four verified steps to save your whitelist spot."
+    : "Complete all three verified steps to save your whitelist spot.";
+  elements.walletTaskNumber.textContent = state.engagementConfigured ? "TASK 03" : "TASK 02";
 
   const steps = {
     handle: state.authenticated,
@@ -183,8 +195,13 @@ async function restore() {
   consumeAuthResult();
   try {
     const config = await whitelistApi.config();
+    state.engagementConfigured = Boolean(config.engagementConfigured);
     document.querySelector('[data-open-task="follow"]').href = config.profileUrl;
     document.querySelector('[data-open-task="quote"]').href = config.announcementUrl;
+    if (!state.engagementConfigured) {
+      state.engagement = false;
+      status(elements.engagementStatus);
+    }
   } catch { /* the task links keep their safe profile fallback */ }
   try {
     applySession(await whitelistApi.session());
