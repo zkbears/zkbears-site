@@ -1,0 +1,15 @@
+name = "zkbears-whitelist-api"
+main = "src/worker.js"
+compatibility_date = "2026-09-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "zkbears-whitelist"
+database_id = "REPLACE_WITH_NEW_D1_DATABASE_ID"
+
+[vars]
+PUBLIC_SITE_URL = "https://zkbears.xyz"
+ALLOWED_ORIGINS = "https://zkbears.xyz,https://www.zkbears.xyz"
+OAUTH_CALLBACK_URL = "https://api.zkbears.xyz/auth/x/callback"
+TARGET_USERNAME = "zk_bears"
+TARGET_POST_ID = "REPLACE_WITH_ANNOUNCEMENT_POST_ID"

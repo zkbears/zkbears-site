@@ -15,6 +15,7 @@
     <link rel="stylesheet" href="./style.css" />
     <script type="module" src="./motion.js"></script>
     <script type="module" src="./app.js"></script>
+    <script type="module" src="./whitelist.js"></script>
   </head>
   <body class="page-enter">
     <header class="site-header">
@@ -110,7 +111,7 @@
           <div class="whitelist-intro">
             <p class="section-kicker">EARLY ACCESS</p>
             <h2 id="whitelist-title">JOIN<br />WHITELIST</h2>
-            <p>Complete all four steps to save your place on this device.</p>
+            <p>Complete all four verified steps to save your whitelist spot.</p>
             <div class="progress" aria-live="polite"><strong id="progress-count">0 / 4</strong> COMPLETE</div>
           </div>
 
@@ -119,7 +120,7 @@
               <div class="task-copy">
                 <span class="task-number">FIELD 01</span>
                 <h3>AUTHENTICATE</h3>
-                <p>Connect one X account to use for this whitelist entry.</p>
+                <p>Connect one X account. Each account can create one whitelist entry.</p>
               </div>
               <div class="x-controls">
                 <div class="task-action auth-action">
@@ -127,6 +128,7 @@
                   <span class="field-check" id="handle-check" aria-label="X handle status">✓</span>
                 </div>
                 <p class="task-status" id="x-status" role="status"></p>
+                <button class="auth-disconnect" id="disconnect-x" type="button" hidden>DISCONNECT X</button>
               </div>
             </section>
 
@@ -172,6 +174,7 @@
               </div>
             </section>
 
+            <p class="form-status" id="form-status" role="status"></p>
             <button class="join-button" id="join-button" type="submit" disabled>SAVE MY SPOT</button>
           </form>
         </div>

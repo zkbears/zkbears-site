@@ -1,0 +1,11 @@
+{
+  "name": "zkbears-whitelist-api",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test --test-isolation=none test/*.test.js"
+  },
+  "devDependencies": {
+    "wrangler": "latest"
+  }
+}
