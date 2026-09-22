@@ -144,6 +144,14 @@ test("complete authentication, verification and submission flow", async () => {
   assert.equal(sessionPayload.user.username, "collector");
   assert.doesNotMatch(JSON.stringify(sessionPayload), /access-token|refresh-token|token_payload/);
 
+  const prematureWallet = encodeBech32m("u");
+  const premature = await worker.fetch(apiRequest("/api/submit", {
+    method: "POST",
+    headers: { ...headers, "Content-Type": "application/json" },
+    body: JSON.stringify({ walletAddress: prematureWallet }),
+  }), env);
+  assert.equal(premature.status, 409);
+
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async (url) => {
     const value = String(url);
@@ -182,6 +190,14 @@ test("submission works when the announcement task is not configured", async () =
   assert.equal((await config.json()).engagementConfigured, false);
   const cookie = await authorize(environment);
   const headers = { Origin: environment.PUBLIC_SITE_URL, Cookie: cookie };
+  const prematureWallet = encodeBech32m("u");
+  const premature = await worker.fetch(apiRequest("/api/submit", {
+    method: "POST",
+    headers: { ...headers, "Content-Type": "application/json" },
+    body: JSON.stringify({ walletAddress: prematureWallet }),
+  }), environment);
+  assert.equal(premature.status, 409);
+
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async (url) => {
     const value = String(url);
@@ -202,4 +218,23 @@ test("submission works when the announcement task is not configured", async () =
   }), environment);
   assert.equal(submitted.status, 200);
   assert.deepEqual(await submitted.json(), { saved: true });
+});
+
+
+test("X credit exhaustion is returned as a safe service error", async () => {
+  const environment = { ...env, DB: new MemoryDb() };
+  const cookie = await authorize(environment);
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => Response.json(
+    { title: "CreditsDepleted", detail: "Credits depleted" },
+    { status: 402 },
+  );
+  try {
+    const response = await worker.fetch(apiRequest("/api/tasks/follow", {
+      method: "POST",
+      headers: { Origin: environment.PUBLIC_SITE_URL, Cookie: cookie },
+    }), environment);
+    assert.equal(response.status, 503);
+    assert.equal((await response.json()).code, "x_api_credits_depleted");
+  } finally { globalThis.fetch = originalFetch; }
 });

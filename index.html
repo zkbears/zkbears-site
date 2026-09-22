@@ -132,15 +132,15 @@
               </div>
             </section>
 
-            <section class="task-card" data-step="follow">
+            <section class="task-card is-locked" data-step="follow">
               <div class="task-copy">
                 <span class="task-number">TASK 01</span>
                 <h3>FOLLOW @ZK_BEARS</h3>
                 <p>Go to the official X profile, follow the account and then come back here.</p>
               </div>
               <div class="task-action">
-                <a class="task-link" data-open-task="follow" href="https://x.com/zk_bears" target="_blank" rel="noreferrer">OPEN TASK ↗</a>
-                <button class="task-check" type="button" data-check-task="follow" aria-pressed="false" aria-label="Verify follow task">✓</button>
+                <a class="task-link is-disabled" data-open-task="follow" href="https://x.com/zk_bears" target="_blank" rel="noreferrer" aria-disabled="true" tabindex="-1">OPEN TASK ↗</a>
+                <button class="task-check" type="button" data-check-task="follow" aria-pressed="false" aria-label="Refresh and verify follow task" disabled>↻</button>
               </div>
               <p class="task-status" data-task-status="follow" role="status"></p>
             </section>
@@ -158,7 +158,7 @@
               <p class="task-status" data-task-status="quote" role="status"></p>
             </section>
 
-            <section class="task-card" data-step="wallet">
+            <section class="task-card is-locked" data-step="wallet">
               <div class="task-copy">
                 <span class="task-number" id="wallet-task-number">TASK 02</span>
                 <label for="wallet-address">ZCASH WALLET ADDRESS</label>
@@ -166,10 +166,10 @@
               </div>
               <div class="wallet-controls">
                 <div class="task-action input-action">
-                  <input id="wallet-address" name="wallet" type="text" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="u1..." aria-describedby="wallet-status" />
+                  <input id="wallet-address" name="wallet" type="text" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="u1..." aria-describedby="wallet-status" disabled />
                   <span class="field-check" id="wallet-check" aria-label="Wallet address status">✓</span>
                 </div>
-                <button class="noir-button" id="use-noir" type="button">USE NOIR</button>
+                <button class="noir-button" id="use-noir" type="button" disabled>CONNECT NOIR</button>
                 <p class="wallet-status" id="wallet-status" role="status"></p>
               </div>
             </section>

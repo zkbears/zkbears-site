@@ -1,4 +1,4 @@
-import { connectNoir, restoreNoirConnection } from "./wallet.js";
+import { connectNoir } from "./wallet.js";
 import { validUnifiedAddress } from "./zcash-address.js";
 import { WhitelistApiError, whitelistApi } from "./whitelist-api.js";
 
@@ -19,12 +19,15 @@ const elements = {
   disconnectX: document.querySelector("#disconnect-x"),
   xStatus: document.querySelector("#x-status"),
   followButton: document.querySelector('[data-check-task="follow"]'),
+  followOpen: document.querySelector('[data-open-task="follow"]'),
+  followCard: document.querySelector('[data-step="follow"]'),
   followStatus: document.querySelector('[data-task-status="follow"]'),
   engagementButton: document.querySelector('[data-check-task="quote"]'),
   engagementStatus: document.querySelector('[data-task-status="quote"]'),
   engagementCard: document.querySelector('[data-step="quote"]'),
   requirements: document.querySelector("#whitelist-requirements"),
   walletTaskNumber: document.querySelector("#wallet-task-number"),
+  walletCard: document.querySelector('[data-step="wallet"]'),
   walletInput: document.querySelector("#wallet-address"),
   walletStatus: document.querySelector("#wallet-status"),
   noirButton: document.querySelector("#use-noir"),
@@ -42,7 +45,12 @@ function errorMessage(error, fallback) {
   if (error instanceof WhitelistApiError && error.status === 401) {
     state.user = null;
     state.authenticated = false;
+    state.follow = false;
+    state.wallet = false;
     return "Your X session expired. Connect X again.";
+  }
+  if (error instanceof WhitelistApiError && error.code === "x_api_credits_depleted") {
+    return "Follow verification is temporarily unavailable. Please try again later.";
   }
   return error?.message || fallback;
 }
@@ -57,8 +65,19 @@ function render() {
   elements.submit.textContent = state.submitted ? "SPOT SAVED ✓" : "SAVE MY SPOT";
   elements.connectX.textContent = state.authenticated ? `@${state.user.username} ✓` : "CONNECT X ↗";
   elements.disconnectX.hidden = !state.authenticated;
-  elements.followButton.disabled = !state.authenticated || state.follow;
+  const followUnlocked = state.authenticated;
+  const walletUnlocked = state.follow;
+  elements.followButton.disabled = !followUnlocked || state.follow;
+  elements.followButton.textContent = state.follow ? "✓" : "↻";
+  elements.followOpen.classList.toggle("is-disabled", !followUnlocked);
+  elements.followOpen.setAttribute("aria-disabled", String(!followUnlocked));
+  elements.followOpen.tabIndex = followUnlocked ? 0 : -1;
+  elements.followCard.classList.toggle("is-locked", !followUnlocked);
   elements.engagementButton.disabled = !state.engagementConfigured || !state.authenticated || state.engagement;
+  elements.walletInput.disabled = !walletUnlocked || state.submitted;
+  elements.noirButton.disabled = !walletUnlocked || state.wallet || state.submitted;
+  elements.noirButton.textContent = state.wallet ? "NOIR CONNECTED" : "CONNECT NOIR";
+  elements.walletCard.classList.toggle("is-locked", !walletUnlocked);
   elements.engagementCard.hidden = !state.engagementConfigured;
   elements.requirements.textContent = state.engagementConfigured
     ? "Complete all four verified steps to save your whitelist spot."
@@ -119,15 +138,36 @@ elements.connectX.addEventListener("click", async () => {
 elements.disconnectX.addEventListener("click", async () => {
   elements.disconnectX.disabled = true;
   try { await whitelistApi.logout(); } catch { /* local state is cleared either way */ }
-  Object.assign(state, { user: null, authenticated: false, follow: false, engagement: false, submitted: false });
+  Object.assign(state, {
+    user: null,
+    authenticated: false,
+    follow: false,
+    engagement: false,
+    wallet: false,
+    walletAddress: "",
+    submitted: false,
+  });
+  elements.walletInput.value = "";
   status(elements.xStatus, "X account disconnected.");
   status(elements.followStatus);
   status(elements.engagementStatus);
+  status(elements.walletStatus);
   elements.disconnectX.disabled = false;
   render();
 });
 
+elements.followOpen.addEventListener("click", (event) => {
+  if (!state.authenticated) {
+    event.preventDefault();
+    status(elements.followStatus, "Authenticate with X before opening this task.", true);
+  }
+});
+
 elements.followButton.addEventListener("click", async () => {
+  if (!state.authenticated) {
+    status(elements.followStatus, "Authenticate with X first.", true);
+    return;
+  }
   elements.followButton.disabled = true;
   status(elements.followStatus, "Checking follow…");
   try {
@@ -156,19 +196,31 @@ elements.engagementButton.addEventListener("click", async () => {
 
 elements.walletInput.addEventListener("input", () => {
   state.walletAddress = elements.walletInput.value.trim();
-  state.wallet = validUnifiedAddress(state.walletAddress);
-  status(elements.walletStatus, !state.walletAddress ? "" : state.wallet ? "Valid Unified Address." : "Enter a valid Unified Address beginning with u1.", Boolean(state.walletAddress && !state.wallet));
+  state.wallet = false;
+  const validFormat = validUnifiedAddress(state.walletAddress);
+  status(
+    elements.walletStatus,
+    !state.walletAddress
+      ? ""
+      : validFormat
+        ? "Address format is valid. Connect Noir Wallet to verify it."
+        : "Enter a valid Unified Address beginning with u1.",
+    Boolean(state.walletAddress && !validFormat),
+  );
   render();
 });
 
 elements.noirButton.addEventListener("click", async () => {
-  status(elements.walletStatus, "Waiting for Noir Wallet…");
+  if (!state.follow) {
+    status(elements.walletStatus, "Verify the X follow task first.", true);
+    return;
+  }
+  status(elements.walletStatus, "Confirm the connection inside Noir Wallet…");
   try {
     const connection = await connectNoir();
     state.walletAddress = connection.address;
     state.wallet = validUnifiedAddress(connection.address);
     elements.walletInput.value = connection.address;
-    elements.noirButton.textContent = "NOIR CONNECTED";
     status(elements.walletStatus, "Connected and verified through Noir Wallet.");
   } catch (error) {
     status(elements.walletStatus, error?.message || "Could not connect to Noir Wallet.", true);
@@ -209,14 +261,6 @@ async function restore() {
     if (!(error instanceof WhitelistApiError && error.status === 401)) {
       status(elements.xStatus, errorMessage(error, "Could not restore the X session."), true);
     }
-  }
-  const noir = await restoreNoirConnection();
-  if (noir && validUnifiedAddress(noir.address) && !state.walletAddress) {
-    state.walletAddress = noir.address;
-    state.wallet = true;
-    elements.walletInput.value = noir.address;
-    elements.noirButton.textContent = "NOIR CONNECTED";
-    status(elements.walletStatus, "Connected and verified through Noir Wallet.");
   }
   render();
 }

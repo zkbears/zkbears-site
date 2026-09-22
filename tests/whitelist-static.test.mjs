@@ -21,3 +21,10 @@ const config = readFileSync(resolve(root, "whitelist-config.js"), "utf8");
 assert.doesNotMatch(config, /LUZFT|clientId|clientSecret/, "old X credentials remain in public config");
 
 console.log("Whitelist static checks passed.");
+
+
+const whitelistUi = readFileSync(resolve(root, "whitelist.js"), "utf8");
+assert.doesNotMatch(whitelistUi, /restoreNoirConnection/, "wallet must not be silently marked as connected");
+assert.match(whitelistUi, /state\.wallet = false;[\s\S]*Address format is valid\. Connect Noir Wallet/, "manual address entry must require Noir connection");
+assert.match(whitelistUi, /elements\.walletInput\.disabled = !walletUnlocked/, "wallet must remain locked until follow verification");
+assert.match(html, /data-check-task="follow"[^>]*disabled>↻<\/button>/, "follow verification must use a locked refresh control");

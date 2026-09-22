@@ -232,6 +232,10 @@ async function xRequest(path, accessToken) {
   const response = await fetch(`${X_API_URL}${path}`, { headers: { Authorization: `Bearer ${accessToken}` } });
   const data = await safeJson(response);
   if (!response.ok) {
+    const apiMessage = [data.title, data.detail, data.reason].filter(Boolean).join(" ");
+    if (/credit.*deplet|deplet.*credit/i.test(apiMessage)) {
+      throw httpError(503, "X verification is temporarily unavailable.", "x_api_credits_depleted");
+    }
     const status = response.status === 429 ? 429 : 502;
     throw httpError(status, data.detail || data.title || "X API verification failed.", response.status === 429 ? "x_rate_limited" : "x_api_error");
   }
