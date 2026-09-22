@@ -80,7 +80,7 @@ document.querySelector('[data-check-task="follow"]').addEventListener("click", a
   setStatus(status, "Checking your follow through X API…");
   button.disabled = true;
   try {
-    state.follow = await verifyFollow(state.xUser.id);
+    state.follow = await verifyFollow();
     setStatus(status, state.follow ? "Follow verified." : "Follow not found yet. Follow @zk_bears and try again.", !state.follow);
   } catch (error) {
     setStatus(status, error?.message || "Follow verification failed.", true);
@@ -96,7 +96,7 @@ document.querySelector('[data-check-task="quote"]').addEventListener("click", as
   setStatus(status, "Checking the like and quote through X API…");
   button.disabled = true;
   try {
-    const result = await verifyLikeAndQuote(state.xUser.id);
+    const result = await verifyLikeAndQuote();
     state.quote = result.liked && result.quoted;
     const message = state.quote ? "Like and quote verified." : `Still missing: ${[!result.liked && "like", !result.quoted && "quote"].filter(Boolean).join(" + ")}.`;
     setStatus(status, message, !state.quote);
@@ -148,7 +148,7 @@ async function restoreX() {
         localStorage.removeItem(X_ACCOUNT_KEY);
       }
       if (boundAccount?.id && boundAccount.id !== xUser.id) {
-        clearXSession();
+        await clearXSession();
         throw new Error(`This device is already connected to @${boundAccount.username}. Only one X account can be used.`);
       }
       state.xUser = xUser;
