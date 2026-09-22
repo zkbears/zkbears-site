@@ -168,7 +168,7 @@ async function submitEntry(request, env) {
   const walletAddress = String(body.walletAddress || "").trim().toLowerCase();
   if (!validUnifiedAddress(walletAddress)) throw httpError(400, "Enter a valid Zcash Unified Address.", "wallet_invalid");
 
-  const progress = await env.DB.prepare("SELECT follow_verified, engagement_verified FROM task_progress WHERE x_user_id = ?")
+  const progress = await env.DB.prepare("SELECT follow_verified, engagement_verified, wallet_address, submitted_at FROM task_progress WHERE x_user_id = ?")
     .bind(session.x_user_id).first();
   if (!/^\d+$/.test(String(env.TARGET_POST_ID || "").trim())) {
     throw httpError(503, "The announcement post has not been configured yet.", "post_not_configured");
@@ -176,10 +176,17 @@ async function submitEntry(request, env) {
   if (!progress?.follow_verified || !progress?.engagement_verified) {
     throw httpError(409, "Complete all X tasks in order first.", "tasks_incomplete");
   }
+  if (progress.wallet_address || progress.submitted_at) {
+    throw httpError(409, "A wallet has already been saved for this whitelist entry.", "wallet_already_saved");
+  }
   try {
-    await env.DB.prepare("UPDATE task_progress SET wallet_address = ?, submitted_at = ?, updated_at = ? WHERE x_user_id = ?")
+    const saved = await env.DB.prepare("UPDATE task_progress SET wallet_address = ?, submitted_at = ?, updated_at = ? WHERE x_user_id = ? AND wallet_address IS NULL AND submitted_at IS NULL")
       .bind(walletAddress, unixTime(), unixTime(), session.x_user_id).run();
+    if (saved?.meta?.changes === 0) {
+      throw httpError(409, "A wallet has already been saved for this whitelist entry.", "wallet_already_saved");
+    }
   } catch (error) {
+    if (error?.code === "wallet_already_saved") throw error;
     if (/unique/i.test(error?.message || "")) throw httpError(409, "This wallet is already used by another whitelist entry.", "wallet_already_used");
     throw error;
   }

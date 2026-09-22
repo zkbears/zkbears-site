@@ -120,6 +120,7 @@ function render() {
   elements.engagementOpen.setAttribute("aria-disabled", String(!engagementUnlocked));
   elements.engagementOpen.tabIndex = engagementUnlocked ? 0 : -1;
   elements.engagementCard.classList.toggle("is-locked", !engagementUnlocked);
+  elements.walletInput.readOnly = true;
   elements.walletInput.disabled = !walletUnlocked || state.submitted;
   elements.noirButton.disabled = !walletUnlocked || state.wallet || state.submitted;
   elements.noirButton.textContent = state.wallet ? "NOIR CONNECTED" : "CONNECT NOIR";
@@ -280,22 +281,6 @@ async function completePendingVisits() {
 }
 
 window.addEventListener("focus", () => { void completePendingVisits(); });
-
-elements.walletInput.addEventListener("input", () => {
-  state.walletAddress = elements.walletInput.value.trim();
-  state.wallet = false;
-  const validFormat = validUnifiedAddress(state.walletAddress);
-  status(
-    elements.walletStatus,
-    !state.walletAddress
-      ? ""
-      : validFormat
-        ? "Address format is valid. Connect Noir Wallet to verify it."
-        : "Enter a valid Unified Address beginning with u1.",
-    Boolean(state.walletAddress && !validFormat),
-  );
-  render();
-});
 
 elements.noirButton.addEventListener("click", async () => {
   if (!state.engagement) {
