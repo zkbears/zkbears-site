@@ -14,6 +14,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&display=swap" rel="stylesheet" />
+    <script src="./motion.js"></script>
     <link rel="stylesheet" href="./style.css" />
     <script type="module" src="./app.js"></script>
     <script type="module" src="./whitelist.js"></script>
@@ -86,7 +87,7 @@
       </section>
 
       <section class="collection" id="collection" aria-labelledby="collection-title">
-        <div class="page-width">
+        <div class="page-width scroll-reveal">
           <div class="section-heading">
             <h2 id="collection-title">THE COLLECTION</h2>
           </div>
@@ -109,7 +110,7 @@
 
       <section class="whitelist" id="whitelist" aria-labelledby="whitelist-title">
         <div class="page-width whitelist-layout">
-          <div class="whitelist-intro">
+          <div class="whitelist-intro scroll-reveal">
             <p class="section-kicker">EARLY ACCESS</p>
             <h2 id="whitelist-title">JOIN<br />WHITELIST</h2>
             <p id="whitelist-requirements">Complete all four steps in order to save your whitelist spot.</p>
@@ -117,7 +118,7 @@
           </div>
 
           <form class="task-list" id="whitelist-form" novalidate>
-            <section class="task-card" data-step="handle">
+            <section class="task-card scroll-reveal" data-step="handle">
               <div class="task-copy">
                 <span class="task-number">FIELD 01</span>
                 <h3>AUTHENTICATE</h3>
@@ -133,7 +134,7 @@
               </div>
             </section>
 
-            <section class="task-card is-locked" data-step="follow">
+            <section class="task-card is-locked scroll-reveal" data-step="follow">
               <div class="task-copy">
                 <span class="task-number">TASK 01</span>
                 <h3>FOLLOW @ZK_BEARS</h3>
@@ -146,7 +147,7 @@
               <p class="task-status" data-task-status="follow" role="status"></p>
             </section>
 
-            <section class="task-card is-locked" data-step="engagement">
+            <section class="task-card is-locked scroll-reveal" data-step="engagement">
               <div class="task-copy">
                 <span class="task-number">TASK 02</span>
                 <h3>LIKE + REPOST</h3>
@@ -159,7 +160,7 @@
               <p class="task-status" data-task-status="engagement" role="status">Announcement post will be added soon.</p>
             </section>
 
-            <section class="task-card is-locked" data-step="wallet">
+            <section class="task-card is-locked scroll-reveal" data-step="wallet">
               <div class="task-copy">
                 <span class="task-number" id="wallet-task-number">TASK 03</span>
                 <label for="wallet-address">ZCASH WALLET ADDRESS</label>
