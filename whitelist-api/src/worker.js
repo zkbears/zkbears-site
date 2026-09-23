@@ -4,6 +4,7 @@ const COOKIE_NAME = "__Host-zkbears_whitelist_session";
 const LEGACY_COOKIE_NAME = "zkbears_whitelist_session";
 const OAUTH_STATE_TTL = 15 * 60;
 const SESSION_TTL = 30 * 24 * 60 * 60;
+const LEGAL_VERSION = "2026-09-23";
 
 export default {
   async fetch(request, env) {
@@ -167,6 +168,9 @@ async function submitEntry(request, env) {
   const body = await readJson(request);
   const walletAddress = String(body.walletAddress || "").trim().toLowerCase();
   if (!validUnifiedAddress(walletAddress)) throw httpError(400, "Enter a valid Zcash Unified Address.", "wallet_invalid");
+  if (body.legalAccepted !== true || body.legalVersion !== LEGAL_VERSION) {
+    throw httpError(400, "Accept the current Terms of Use and acknowledge the Privacy Policy.", "legal_consent_required");
+  }
 
   const progress = await env.DB.prepare("SELECT follow_verified, engagement_verified, wallet_address, submitted_at FROM task_progress WHERE x_user_id = ?")
     .bind(session.x_user_id).first();
@@ -180,8 +184,9 @@ async function submitEntry(request, env) {
     throw httpError(409, "A wallet has already been saved for this whitelist entry.", "wallet_already_saved");
   }
   try {
-    const saved = await env.DB.prepare("UPDATE task_progress SET wallet_address = ?, submitted_at = ?, updated_at = ? WHERE x_user_id = ? AND wallet_address IS NULL AND submitted_at IS NULL")
-      .bind(walletAddress, unixTime(), unixTime(), session.x_user_id).run();
+    const acceptedAt = unixTime();
+    const saved = await env.DB.prepare("UPDATE task_progress SET wallet_address = ?, submitted_at = ?, updated_at = ?, legal_version = ?, legal_accepted_at = ? WHERE x_user_id = ? AND wallet_address IS NULL AND submitted_at IS NULL")
+      .bind(walletAddress, acceptedAt, acceptedAt, LEGAL_VERSION, acceptedAt, session.x_user_id).run();
     if (saved?.meta?.changes === 0) {
       throw httpError(409, "A wallet has already been saved for this whitelist entry.", "wallet_already_saved");
     }

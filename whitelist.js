@@ -36,6 +36,7 @@ const elements = {
   walletStatus: document.querySelector("#wallet-status"),
   noirButton: document.querySelector("#use-noir"),
   formStatus: document.querySelector("#form-status"),
+  legalConsent: document.querySelector("#legal-consent"),
   submit: document.querySelector("#join-button"),
   progress: document.querySelector("#progress-count"),
 };
@@ -100,7 +101,7 @@ function render() {
   const completed = requiredSteps.filter(Boolean).length;
   const total = requiredSteps.length;
   elements.progress.textContent = `${completed} / ${total}`;
-  elements.submit.disabled = completed !== total || state.submitted;
+  elements.submit.disabled = completed !== total || state.submitted || !elements.legalConsent.checked;
   elements.submit.textContent = state.submitted ? "SPOT SAVED ✓" : "SAVE MY SPOT";
   elements.connectX.textContent = state.authenticated ? `${connectedXLabel()} ✓` : "CONNECT X ↗";
   elements.disconnectX.hidden = !state.authenticated;
@@ -202,6 +203,7 @@ elements.disconnectX.addEventListener("click", async () => {
     submitted: false,
   });
   elements.walletInput.value = "";
+  elements.legalConsent.checked = false;
   status(elements.xStatus, "X account disconnected.");
   status(elements.followStatus);
   status(elements.engagementStatus);
@@ -281,6 +283,7 @@ async function completePendingVisits() {
 }
 
 window.addEventListener("focus", () => { void completePendingVisits(); });
+elements.legalConsent.addEventListener("change", render);
 
 elements.noirButton.addEventListener("click", async () => {
   if (!state.engagement) {
@@ -306,7 +309,7 @@ elements.form.addEventListener("submit", async (event) => {
   elements.submit.disabled = true;
   status(elements.formStatus, "Saving your whitelist entry…");
   try {
-    const result = await whitelistApi.submit(state.walletAddress);
+    const result = await whitelistApi.submit(state.walletAddress, elements.legalConsent.checked);
     state.submitted = Boolean(result.saved);
     status(elements.formStatus, "Your whitelist spot is saved.");
   } catch (error) {

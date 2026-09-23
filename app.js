@@ -1,9 +1,3 @@
-const termsDialog = document.querySelector("#terms-dialog");
-document.querySelector("#open-terms")?.addEventListener("click", () => termsDialog?.showModal());
-termsDialog?.addEventListener("click", (event) => {
-  if (event.target === termsDialog) termsDialog.close();
-});
-
 const nftSources = Array.from({ length: 12 }, (_, index) => `./assets/nft-${String(index + 1).padStart(2, "0")}.png`);
 const nftFrames = [...document.querySelectorAll(".nft-frame")];
 let galleryOffset = 0;

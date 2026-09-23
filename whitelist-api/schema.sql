@@ -32,5 +32,7 @@ CREATE TABLE IF NOT EXISTS task_progress (
   engagement_verified INTEGER NOT NULL DEFAULT 0,
   wallet_address TEXT UNIQUE,
   submitted_at INTEGER,
+  legal_version TEXT,
+  legal_accepted_at INTEGER,
   updated_at INTEGER
 );

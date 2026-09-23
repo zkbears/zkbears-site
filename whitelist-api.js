@@ -1,5 +1,7 @@
 import { WHITELIST_CONFIG } from "./whitelist-config.js";
 
+const LEGAL_VERSION = "2026-09-23";
+
 export class WhitelistApiError extends Error {
   constructor(message, status = 0, code = "request_failed") {
     super(message);
@@ -49,7 +51,10 @@ export const whitelistApi = Object.freeze({
   completeEngagementVisit() {
     return request("/api/tasks/engagement", { method: "POST", body: "{}" });
   },
-  submit(walletAddress) {
-    return request("/api/submit", { method: "POST", body: JSON.stringify({ walletAddress }) });
+  submit(walletAddress, legalAccepted) {
+    return request("/api/submit", {
+      method: "POST",
+      body: JSON.stringify({ walletAddress, legalAccepted, legalVersion: LEGAL_VERSION }),
+    });
   },
 });

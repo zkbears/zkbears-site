@@ -176,6 +176,10 @@
               </div>
             </section>
 
+            <label class="legal-consent" for="legal-consent">
+              <input id="legal-consent" type="checkbox" />
+              <span>I agree to the <a href="./terms.html" target="_blank" rel="noreferrer">Terms of Use</a> and acknowledge the <a href="./privacy.html" target="_blank" rel="noreferrer">Privacy Policy</a>.</span>
+            </label>
             <p class="form-status" id="form-status" role="status"></p>
             <button class="join-button" id="join-button" type="submit" disabled>SAVE MY SPOT</button>
           </form>
@@ -186,24 +190,11 @@
     <footer>
       <div class="page-width footer-inner">
         <strong>ZKBEARS</strong>
-        <button type="button" id="open-terms">TERMS</button>
+        <nav class="footer-links" aria-label="Legal links">
+          <a href="./terms.html">TERMS</a>
+          <a href="./privacy.html">PRIVACY</a>
+        </nav>
       </div>
     </footer>
-
-    <dialog class="terms-dialog" id="terms-dialog" aria-labelledby="terms-title">
-      <form method="dialog" class="terms-card">
-        <button class="terms-close" value="close" aria-label="Close terms">×</button>
-        <p class="section-kicker">LAST UPDATED · SEPTEMBER 2026</p>
-        <h2 id="terms-title">TERMS</h2>
-        <h3>Collection information</h3>
-        <p>Collection artwork, traits, availability, release details, and related information may change before the final release. Content on this website is provided for general information.</p>
-        <h3>Ownership</h3>
-        <p>ZKBEARS names, artwork, visual elements, and website content belong to their respective rights holders. Ownership rights attached to an NFT will be described in the final collection license.</p>
-        <h3>No financial advice</h3>
-        <p>Nothing on this website is financial, investment, legal, or tax advice. Digital assets involve risk, and you are responsible for your own decisions.</p>
-        <h3>Changes</h3>
-        <p>These terms may be updated as the collection develops. Continued use of the website after an update means that the revised terms apply.</p>
-      </form>
-    </dialog>
   </body>
 </html>

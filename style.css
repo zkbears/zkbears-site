@@ -405,8 +405,23 @@ h2 { margin-bottom: 0; font-size: clamp(48px, 6vw, 78px); line-height: .9; lette
 footer { color: var(--cream); background: var(--forest); }
 .footer-inner { min-height: 110px; display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 24px; }
 .footer-inner strong { font-size: 27px; }
-.footer-inner button { justify-self: end; padding: 8px 0; color: var(--cream); background: transparent; border: 0; font: inherit; font-weight: 700; cursor: pointer; }
-.footer-inner button:hover { color: var(--sun); }
+.footer-links { justify-self: end; display: flex; align-items: center; gap: 22px; }
+.footer-links a { padding: 8px 0; color: var(--cream); font: inherit; font-weight: 700; text-decoration: none; }
+.footer-links a:hover { color: var(--sun); }
+
+.legal-consent {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  align-items: start;
+  gap: 12px;
+  padding: 16px 18px;
+  color: var(--cream);
+  border: 2px solid rgba(255,255,255,.34);
+  cursor: pointer;
+}
+.legal-consent input { width: 20px; height: 20px; margin: 1px 0 0; accent-color: var(--sun); }
+.legal-consent span { font-size: 12px; line-height: 1.55; }
+.legal-consent a { color: var(--sun); font-weight: 700; }
 
 .terms-dialog {
   width: min(820px, calc(100vw - 32px));
@@ -444,7 +459,11 @@ footer { color: var(--cream); background: var(--forest); }
 .standalone-terms { margin-block: 70px; max-width: 850px; }
 .standalone-terms h1 { margin: 18px 0 44px; }
 .standalone-terms h2 { margin: 34px 0 8px; font-size: 30px; }
-.standalone-terms p { font-family: inherit; line-height: 1.6; }
+.standalone-terms p,
+.standalone-terms li { font-family: inherit; line-height: 1.65; }
+.standalone-terms ul { margin: 12px 0 0; padding-left: 24px; }
+.standalone-terms li + li { margin-top: 10px; }
+.standalone-terms a { color: var(--blue); font-weight: 700; }
 
 .checker-page { min-height: 100vh; overflow: hidden; background: #1d1d1d; }
 .checker-scene { position: relative; min-height: calc(100vh - 104px); overflow: hidden; display: grid; place-items: center; background: #1d1d1d; }
