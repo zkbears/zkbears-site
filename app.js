@@ -23,24 +23,6 @@ if (nftFrames.length && !window.matchMedia("(prefers-reduced-motion: reduce)").m
   window.setInterval(rotateGallery, 6200);
 }
 
-const revealTargets = [
-  document.querySelector(".hero-copy"),
-  document.querySelector(".supply-display"),
-  document.querySelector(".collection .page-width"),
-  document.querySelector(".whitelist-intro"),
-  ...document.querySelectorAll(".task-card"),
-].filter(Boolean);
-
-if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-  revealTargets.forEach((target) => target.classList.add("is-visible"));
-} else {
-  revealTargets.forEach((target) => target.classList.add("scroll-reveal"));
-  const revealObserver = new IntersectionObserver((entries) => {
-    entries.forEach((entry) => entry.target.classList.toggle("is-visible", entry.isIntersecting));
-  }, { threshold: .14, rootMargin: "0px 0px -8%" });
-  revealTargets.forEach((target) => revealObserver.observe(target));
-}
-
 const heroScene = document.querySelector(".hero");
 let sceneFrame = 0;
 let sceneTarget = 0;

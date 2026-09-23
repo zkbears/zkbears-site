@@ -14,13 +14,6 @@
 
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; scroll-padding-top: 100px; }
-body.page-enter { animation: page-enter .48s cubic-bezier(.16,1,.3,1) both; }
-body.page-leaving { opacity: 0; transform: translateY(-14px) scale(.995); pointer-events: none; }
-body { transition: opacity .3s ease, transform .38s cubic-bezier(.4,0,1,1); }
-@keyframes page-enter {
-  from { opacity: 0; transform: translateY(18px) scale(.995); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
-}
 body {
   min-width: 320px;
   margin: 0;
@@ -572,13 +565,6 @@ h2 { line-height: 1.05; letter-spacing: 0; }
 .soon-lockup img { width: clamp(300px, 36vw, 500px); }
 .soon-lockup h1 { font-size: clamp(100px, 15vw, 190px); line-height: 1; padding-block: 0 8px; }
 
-.scroll-reveal {
-  opacity: 0;
-  transform: translateY(46px) scale(.985);
-  filter: saturate(.75);
-  transition: opacity .75s ease, transform .9s cubic-bezier(.2,.72,.2,1), filter .75s ease;
-}
-.scroll-reveal.is-visible { opacity: 1; transform: translateY(0) scale(1); filter: saturate(1); }
 .hero .cloud, .hero .pixel-sun { translate: 0 calc(var(--scene-scroll, 0) * -28px); will-change: translate; }
 .hero .tree { translate: 0 calc(var(--scene-scroll, 0) * 14px); will-change: translate; }
 .hero .meadow-decor { translate: 0 calc(var(--scene-scroll, 0) * 7px); will-change: translate; }
@@ -606,7 +592,6 @@ h2 { line-height: 1.05; letter-spacing: 0; }
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   * { transition: none !important; }
-  .scroll-reveal { opacity: 1; transform: none; filter: none; }
   .hero .cloud, .hero .pixel-sun, .hero .tree, .hero .meadow-decor { translate: none; }
 }
 
