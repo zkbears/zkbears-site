@@ -121,14 +121,16 @@ h1 {
   letter-spacing: .01em;
 }
 .tagline {
-  margin-bottom: 25px;
+  margin-bottom: 28px;
   color: var(--blue);
   font-size: clamp(18px, 2vw, 25px);
   font-weight: 700;
+  line-height: 1.25;
   letter-spacing: .03em;
 }
+.tagline span { display: block; }
 .description { max-width: 760px; font-size: 18px; line-height: 1.45; }
-.description p { margin-bottom: 14px; }
+.description p { margin-bottom: 18px; }
 .description p:last-child { margin-bottom: 0; }
 .supply-display {
   position: relative;
