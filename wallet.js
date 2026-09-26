@@ -1,7 +1,5 @@
 const provider = () => window.noirwallet?.zcash || null;
 
-const wait = (milliseconds) => new Promise((resolve) => window.setTimeout(resolve, milliseconds));
-
 function extractUnifiedAddress(value) {
   const candidates = [
     value?.unified,
@@ -39,15 +37,6 @@ export function noirInstalled() {
   return Boolean(provider());
 }
 
-export async function waitForNoirProvider({ timeoutMs = 15000 } = {}) {
-  const startedAt = Date.now();
-  while (!provider()) {
-    if (timeoutMs > 0 && Date.now() - startedAt >= timeoutMs) return null;
-    await wait(200);
-  }
-  return provider();
-}
-
 export async function restoreNoirConnection() {
   const wallet = provider();
   if (!wallet) return null;
@@ -59,8 +48,8 @@ export async function restoreNoirConnection() {
   }
 }
 
-export async function connectNoir({ waitForProvider = false, timeoutMs = 15000 } = {}) {
-  const wallet = provider() || (waitForProvider ? await waitForNoirProvider({ timeoutMs }) : null);
+export async function connectNoir() {
+  const wallet = provider();
   if (!wallet) {
     throw new Error("Noir Wallet was not detected. Install and unlock the official extension, then click CONNECT NOIR again.");
   }

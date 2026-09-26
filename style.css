@@ -473,34 +473,6 @@ footer { color: var(--cream); background: var(--forest); }
 
 .checker-page { min-height: 100vh; overflow: hidden; background: #1d1d1d; }
 
-.wallet-connect-page {
-  min-height: 100svh;
-  display: grid;
-  place-items: center;
-  padding: 24px;
-  background: var(--sky);
-}
-
-.wallet-connect-panel {
-  width: min(100%, 460px);
-  padding: clamp(24px, 7vw, 42px);
-  background: var(--cream);
-}
-
-.wallet-connect-panel h1 {
-  margin: 10px 0 22px;
-  color: var(--forest);
-  font-size: clamp(1.65rem, 7vw, 2.5rem);
-}
-
-.wallet-connect-panel p:not(.section-kicker) {
-  min-height: 4.8em;
-  margin: 0 0 22px;
-  line-height: 1.6;
-}
-
-.wallet-connect-panel .is-error { color: #b52b20; }
-.wallet-connect-panel [hidden] { display: none !important; }
 .checker-scene { position: relative; min-height: calc(100vh - 104px); overflow: hidden; display: grid; place-items: center; background: #1d1d1d; }
 .soon-lockup { position: relative; z-index: 6; margin-top: 4vh; display: grid; justify-items: center; }
 .soon-lockup img {

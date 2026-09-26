@@ -4,6 +4,10 @@ import { WhitelistApiError, whitelistApi } from "./whitelist-api.js";
 
 const FOLLOW_VISIT_KEY_PREFIX = "zkbears_follow_task_opened";
 const ENGAGEMENT_VISIT_KEY_PREFIX = "zkbears_engagement_task_opened";
+const NOIR_INSTALL_PENDING_KEY = "zkbears_noir_install_pending";
+const NOIR_RELOAD_ATTEMPTED_KEY = "zkbears_noir_reload_attempted";
+const NOIR_SCROLL_POSITION_KEY = "zkbears_noir_scroll_position";
+const NOIR_STORE_URL = "https://chromewebstore.google.com/detail/noir-wallet/mfoghjbpfanobmnoemoepenjjcmfpmdn";
 
 const state = {
   user: null,
@@ -36,6 +40,7 @@ const elements = {
   walletInput: document.querySelector("#wallet-address"),
   walletStatus: document.querySelector("#wallet-status"),
   noirButton: document.querySelector("#use-noir"),
+  noirInstallLink: document.querySelector("[data-install-noir]"),
   formStatus: document.querySelector("#form-status"),
   legalConsent: document.querySelector("#legal-consent"),
   submit: document.querySelector("#join-button"),
@@ -115,6 +120,30 @@ function hasPendingEngagementVisit() {
   try { return localStorage.getItem(engagementVisitKey()) === "1"; } catch { return false; }
 }
 
+function storageValue(key) {
+  try { return sessionStorage.getItem(key); } catch { return null; }
+}
+
+function setStorageValue(key, value) {
+  try { sessionStorage.setItem(key, value); } catch { /* storage can be unavailable */ }
+}
+
+function removeStorageValue(key) {
+  try { sessionStorage.removeItem(key); } catch { /* storage can be unavailable */ }
+}
+
+function clearNoirInstallState() {
+  removeStorageValue(NOIR_INSTALL_PENDING_KEY);
+  removeStorageValue(NOIR_RELOAD_ATTEMPTED_KEY);
+}
+
+function beginNoirInstallation() {
+  setStorageValue(NOIR_INSTALL_PENDING_KEY, "1");
+  removeStorageValue(NOIR_RELOAD_ATTEMPTED_KEY);
+  status(elements.walletStatus, "Install Noir Wallet from the official store, create or unlock your wallet, then return here.");
+  render();
+}
+
 function render() {
   const requiredSteps = [state.authenticated, state.follow, state.engagement, state.wallet];
   const completed = requiredSteps.filter(Boolean).length;
@@ -145,7 +174,13 @@ function render() {
   elements.noirButton.disabled = !walletUnlocked || state.wallet || state.submitted || state.walletConnecting;
   elements.noirButton.textContent = state.wallet
     ? "NOIR CONNECTED"
-    : state.walletConnecting ? "CONNECTING…" : "CONNECT NOIR";
+    : state.walletConnecting
+      ? "CONNECTING…"
+      : noirInstalled()
+        ? "CONNECT NOIR"
+        : storageValue(NOIR_INSTALL_PENDING_KEY) === "1"
+          ? "RETURN AFTER INSTALL"
+          : "INSTALL NOIR WALLET";
   elements.walletCard.classList.toggle("is-locked", !walletUnlocked);
   elements.requirements.textContent = "Complete all four steps in order to save your whitelist spot.";
   elements.walletTaskNumber.textContent = "TASK 03";
@@ -200,48 +235,30 @@ function applySession(session) {
 function updateNoirStatus() {
   if (!state.engagement || state.wallet || state.submitted) return;
   if (noirInstalled()) {
+    clearNoirInstallState();
     status(elements.walletStatus, "Noir Wallet detected. Click CONNECT NOIR to continue.");
+  } else if (
+    storageValue(NOIR_INSTALL_PENDING_KEY) === "1"
+    && storageValue(NOIR_RELOAD_ATTEMPTED_KEY) === "1"
+  ) {
+    clearNoirInstallState();
+    status(elements.walletStatus, "Noir Wallet was not detected. Install and unlock the official extension, then try again.", true);
   }
 }
 
-function connectNoirInFreshWindow() {
-  const requestId = Array.from(crypto.getRandomValues(new Uint32Array(4)), (value) => value.toString(16)).join("");
-  const connectUrl = new URL("./wallet-connect.html", window.location.href);
-  connectUrl.searchParams.set("request", requestId);
-  const popup = window.open(
-    connectUrl,
-    "zkbears-noir-connect",
-    "popup=yes,width=520,height=680,resizable=yes,scrollbars=yes",
-  );
-
-  if (!popup) {
-    return Promise.reject(new Error("The Noir connection window was blocked. Allow pop-ups for zkbears.xyz and click CONNECT NOIR again."));
+function reloadAfterNoirInstallation() {
+  if (storageValue(NOIR_INSTALL_PENDING_KEY) !== "1") return false;
+  if (noirInstalled()) {
+    clearNoirInstallState();
+    updateNoirStatus();
+    render();
+    return false;
   }
-
-  return new Promise((resolve, reject) => {
-    let settled = false;
-    const finish = (callback, value) => {
-      if (settled) return;
-      settled = true;
-      window.removeEventListener("message", receiveConnection);
-      window.clearInterval(closedCheck);
-      callback(value);
-    };
-    const receiveConnection = (event) => {
-      if (event.origin !== window.location.origin || event.source !== popup) return;
-      if (event.data?.type !== "zkbears:noir-connection" || event.data?.requestId !== requestId) return;
-      if (event.data.error) {
-        finish(reject, new Error(event.data.error));
-        return;
-      }
-      finish(resolve, event.data.connection);
-    };
-    const closedCheck = window.setInterval(() => {
-      if (popup.closed) finish(reject, new Error("The Noir connection window was closed before the wallet connected."));
-    }, 400);
-
-    window.addEventListener("message", receiveConnection);
-  });
+  if (storageValue(NOIR_RELOAD_ATTEMPTED_KEY) === "1") return false;
+  setStorageValue(NOIR_RELOAD_ATTEMPTED_KEY, "1");
+  setStorageValue(NOIR_SCROLL_POSITION_KEY, String(window.scrollY));
+  window.location.reload();
+  return true;
 }
 
 function consumeAuthResult() {
@@ -316,7 +333,8 @@ async function completePendingFollowVisit() {
 }
 
 document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "visible") void syncAfterReturn();
+  if (document.visibilityState !== "visible") return;
+  if (!reloadAfterNoirInstallation()) void syncAfterReturn();
 });
 
 elements.engagementOpen.addEventListener("click", (event) => {
@@ -357,11 +375,14 @@ async function completePendingVisits() {
   await completePendingEngagementVisit();
 }
 
-window.addEventListener("focus", () => { void syncAfterReturn(); });
+window.addEventListener("focus", () => {
+  if (!reloadAfterNoirInstallation()) void syncAfterReturn();
+});
 window.addEventListener("pageshow", (event) => {
   if (event.persisted) void syncAfterReturn();
 });
 elements.legalConsent.addEventListener("change", render);
+elements.noirInstallLink?.addEventListener("click", beginNoirInstallation);
 
 elements.noirButton.addEventListener("click", async () => {
   if (!state.engagement) {
@@ -369,18 +390,16 @@ elements.noirButton.addEventListener("click", async () => {
     return;
   }
   if (state.walletConnecting) return;
+  if (!noirInstalled()) {
+    beginNoirInstallation();
+    window.open(NOIR_STORE_URL, "_blank", "noopener,noreferrer");
+    return;
+  }
   state.walletConnecting = true;
-  status(
-    elements.walletStatus,
-    noirInstalled()
-      ? "Confirm the connection inside Noir Wallet…"
-      : "Opening a fresh Noir connection. This page will stay open…",
-  );
+  status(elements.walletStatus, "Confirm the connection inside Noir Wallet…");
   render();
   try {
-    const connection = noirInstalled()
-      ? await connectNoir()
-      : await connectNoirInFreshWindow();
+    const connection = await connectNoir();
     if (!state.engagement) throw new Error("Complete the previous tasks before connecting a wallet.");
     state.walletAddress = connection.address;
     state.wallet = validUnifiedAddress(connection.address);
@@ -451,6 +470,11 @@ async function syncAfterReturn() {
 async function restore() {
   consumeAuthResult();
   await syncFromServer(true);
+  const savedScrollPosition = Number(storageValue(NOIR_SCROLL_POSITION_KEY));
+  removeStorageValue(NOIR_SCROLL_POSITION_KEY);
+  if (Number.isFinite(savedScrollPosition) && savedScrollPosition > 0) {
+    window.requestAnimationFrame(() => window.scrollTo(0, savedScrollPosition));
+  }
 }
 
 render();
