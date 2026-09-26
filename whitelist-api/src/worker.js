@@ -5,7 +5,7 @@ const LEGACY_COOKIE_NAME = "zkbears_whitelist_session";
 const OAUTH_STATE_TTL = 15 * 60;
 const SESSION_TTL = 30 * 24 * 60 * 60;
 const LEGAL_VERSION = "2026-09-23";
-const DEFAULT_TASK_DELAY_MS = 4000;
+const DEFAULT_TASK_DELAY_MS = 4500;
 
 export default {
   async fetch(request, env) {
@@ -151,7 +151,7 @@ async function completeFollowVisit(request, env) {
     .bind(session.x_user_id).first();
   if (!progress?.follow_opened_at) throw httpError(409, "Open the X profile to start this task.", "task_not_started");
   if (Date.now() - progress.follow_opened_at < taskDelayMs(env)) {
-    throw httpError(409, "Wait four seconds before completing this task.", "task_timer_active");
+    throw httpError(409, "Task verification is still in progress.", "task_timer_active");
   }
   await env.DB.prepare("UPDATE task_progress SET follow_verified = ?, updated_at = ? WHERE x_user_id = ?")
     .bind(1, unixTime(), session.x_user_id).run();
@@ -191,7 +191,7 @@ async function completeEngagementVisit(request, env) {
   if (!progress?.follow_verified) throw httpError(409, "Complete the follow task first.", "follow_incomplete");
   if (!progress?.engagement_opened_at) throw httpError(409, "Open the announcement post to start this task.", "task_not_started");
   if (Date.now() - progress.engagement_opened_at < taskDelayMs(env)) {
-    throw httpError(409, "Wait four seconds before completing this task.", "task_timer_active");
+    throw httpError(409, "Task verification is still in progress.", "task_timer_active");
   }
   await env.DB.prepare("UPDATE task_progress SET engagement_verified = ?, updated_at = ? WHERE x_user_id = ?")
     .bind(1, unixTime(), session.x_user_id).run();

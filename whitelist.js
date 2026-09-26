@@ -4,7 +4,7 @@ import { WhitelistApiError, whitelistApi } from "./whitelist-api.js";
 
 const FOLLOW_VISIT_KEY_PREFIX = "zkbears_follow_task_opened";
 const ENGAGEMENT_VISIT_KEY_PREFIX = "zkbears_engagement_task_opened";
-const TASK_OPEN_DELAY_MS = 4000;
+const TASK_OPEN_DELAY_MS = 4500;
 const NOIR_INSTALL_PENDING_KEY = "zkbears_noir_install_pending";
 const NOIR_RELOAD_ATTEMPTED_KEY = "zkbears_noir_reload_attempted";
 const NOIR_SCROLL_POSITION_KEY = "zkbears_noir_scroll_position";
@@ -135,11 +135,6 @@ function pendingVisitRemaining(key) {
   } catch {
     return 0;
   }
-}
-
-function countdownText(label, remaining) {
-  const seconds = Math.max(1, Math.ceil(remaining / 1000));
-  return `${label} Task completes in ${seconds} second${seconds === 1 ? "" : "s"}.`;
 }
 
 function storageValue(key) {
@@ -347,7 +342,7 @@ function scheduleFollowVisitCompletion() {
     void completePendingFollowVisit();
     return;
   }
-  status(elements.followStatus, countdownText("X profile opened.", remaining));
+  status(elements.followStatus, "X profile opened. Checking task…");
   window.clearTimeout(followCompletionTimer);
   followCompletionTimer = window.setTimeout(scheduleFollowVisitCompletion, Math.min(remaining, 250));
 }
@@ -408,7 +403,7 @@ function scheduleEngagementVisitCompletion() {
     void completePendingEngagementVisit();
     return;
   }
-  status(elements.engagementStatus, countdownText("Announcement opened.", remaining));
+  status(elements.engagementStatus, "Announcement opened. Checking task…");
   window.clearTimeout(engagementCompletionTimer);
   engagementCompletionTimer = window.setTimeout(scheduleEngagementVisitCompletion, Math.min(remaining, 250));
 }
