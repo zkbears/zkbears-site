@@ -51,7 +51,7 @@ export async function restoreNoirConnection() {
 export async function connectNoir() {
   const wallet = provider();
   if (!wallet) {
-    throw new Error("Noir Wallet was not detected. Install the official extension, unlock it and reload this page.");
+    throw new Error("Noir Wallet was not detected. Install the official extension, unlock it and reload this page. Your completed tasks will be restored automatically.");
   }
 
   try {

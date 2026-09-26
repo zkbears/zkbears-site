@@ -1,4 +1,4 @@
-import { connectNoir } from "./wallet.js";
+import { connectNoir, noirInstalled } from "./wallet.js";
 import { validUnifiedAddress } from "./zcash-address.js";
 import { WhitelistApiError, whitelistApi } from "./whitelist-api.js";
 
@@ -10,7 +10,7 @@ const state = {
   authenticated: false,
   follow: false,
   engagement: false,
-  engagementConfigured: false,
+  engagementConfigured: true,
   wallet: false,
   walletAddress: "",
   submitted: false,
@@ -56,6 +56,24 @@ function errorMessage(error, fallback) {
     return "Your X session expired. Connect X again.";
   }
   return error?.message || fallback;
+}
+
+function wait(milliseconds) {
+  return new Promise((resolve) => window.setTimeout(resolve, milliseconds));
+}
+
+async function retry(task, attempts = 3) {
+  let lastError;
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try {
+      return await task();
+    } catch (error) {
+      lastError = error;
+      if (error instanceof WhitelistApiError && error.status === 401) throw error;
+      if (attempt < attempts - 1) await wait(350 * (attempt + 1));
+    }
+  }
+  throw lastError;
 }
 
 function connectedXLabel() {
@@ -145,16 +163,22 @@ function render() {
 }
 
 function applySession(session) {
+  const previousUserId = state.user?.id || "";
+  const nextUserId = session.user?.id || "";
   state.user = session.user || null;
-  state.authenticated = Boolean(session.user?.id);
+  state.authenticated = Boolean(nextUserId);
   state.follow = Boolean(session.tasks?.follow);
   state.engagement = Boolean(session.tasks?.engagement);
   state.submitted = Boolean(session.tasks?.submitted);
-  if (session.tasks?.walletAddress) {
-    state.walletAddress = session.tasks.walletAddress;
+  const savedWalletAddress = session.tasks?.walletAddress || "";
+  if (savedWalletAddress) {
+    state.walletAddress = savedWalletAddress;
     state.wallet = true;
-    elements.walletInput.value = state.walletAddress;
+  } else if (previousUserId !== nextUserId) {
+    state.walletAddress = "";
+    state.wallet = false;
   }
+  elements.walletInput.value = state.walletAddress;
   if (state.authenticated) status(elements.xStatus, `${connectedXLabel()} authenticated.`);
   if (state.follow) {
     forgetFollowVisit();
@@ -168,6 +192,13 @@ function applySession(session) {
   }
   if (state.wallet) status(elements.walletStatus, "Valid Unified Address.");
   render();
+}
+
+function updateNoirStatus() {
+  if (!state.engagement || state.wallet || state.submitted) return;
+  if (noirInstalled()) {
+    status(elements.walletStatus, "Noir Wallet detected. Click CONNECT NOIR to continue.");
+  }
 }
 
 function consumeAuthResult() {
@@ -241,7 +272,7 @@ async function completePendingFollowVisit() {
 }
 
 document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "visible") void completePendingVisits();
+  if (document.visibilityState === "visible") void syncAfterReturn();
 });
 
 elements.engagementOpen.addEventListener("click", (event) => {
@@ -282,12 +313,19 @@ async function completePendingVisits() {
   await completePendingEngagementVisit();
 }
 
-window.addEventListener("focus", () => { void completePendingVisits(); });
+window.addEventListener("focus", () => { void syncAfterReturn(); });
+window.addEventListener("pageshow", (event) => {
+  if (event.persisted) void syncAfterReturn();
+});
 elements.legalConsent.addEventListener("change", render);
 
 elements.noirButton.addEventListener("click", async () => {
   if (!state.engagement) {
     status(elements.walletStatus, "Complete the Like + Repost task first.", true);
+    return;
+  }
+  if (!noirInstalled()) {
+    status(elements.walletStatus, "Noir Wallet was not detected. If you just installed it, reload this page. Your completed tasks are already saved.", true);
     return;
   }
   status(elements.walletStatus, "Confirm the connection inside Noir Wallet…");
@@ -318,29 +356,48 @@ elements.form.addEventListener("submit", async (event) => {
   render();
 });
 
+let synchronizing = null;
+
+async function syncFromServer(showErrors = false) {
+  if (synchronizing) return synchronizing;
+  synchronizing = (async () => {
+    try {
+      const config = await retry(() => whitelistApi.config());
+      state.engagementConfigured = Boolean(config.engagementConfigured);
+      document.querySelector('[data-open-task="follow"]').href = config.profileUrl;
+      elements.engagementOpen.href = config.announcementUrl;
+      if (!state.engagementConfigured) {
+        state.engagement = false;
+        status(elements.engagementStatus, "Announcement post will be added soon.");
+      } else {
+        status(elements.engagementStatus);
+      }
+    } catch {
+      // Keep the current announcement as a safe fallback while the API retries
+      // on the next focus, visibility or pageshow event.
+    }
+    try {
+      applySession(await retry(() => whitelistApi.session()));
+      await completePendingVisits();
+    } catch (error) {
+      if (showErrors && !(error instanceof WhitelistApiError && error.status === 401)) {
+        status(elements.xStatus, errorMessage(error, "Could not restore the X session."), true);
+      }
+    }
+    updateNoirStatus();
+    render();
+  })().finally(() => { synchronizing = null; });
+  return synchronizing;
+}
+
+async function syncAfterReturn() {
+  await syncFromServer(false);
+  updateNoirStatus();
+}
+
 async function restore() {
   consumeAuthResult();
-  try {
-    const config = await whitelistApi.config();
-    state.engagementConfigured = Boolean(config.engagementConfigured);
-    document.querySelector('[data-open-task="follow"]').href = config.profileUrl;
-    elements.engagementOpen.href = config.announcementUrl;
-    if (!state.engagementConfigured) {
-      state.engagement = false;
-      status(elements.engagementStatus, "Announcement post will be added soon.");
-    } else {
-      status(elements.engagementStatus);
-    }
-  } catch { /* the task links keep their safe profile fallback */ }
-  try {
-    applySession(await whitelistApi.session());
-    await completePendingVisits();
-  } catch (error) {
-    if (!(error instanceof WhitelistApiError && error.status === 401)) {
-      status(elements.xStatus, errorMessage(error, "Could not restore the X session."), true);
-    }
-  }
-  render();
+  await syncFromServer(true);
 }
 
 render();
