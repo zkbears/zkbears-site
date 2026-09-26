@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#fff6d9" />
+    <meta name="referrer" content="no-referrer" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; form-action 'none'; frame-src 'none'; upgrade-insecure-requests" />
+    <title>Connect Noir Wallet — ZKBEARS</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="./assets/favicon-32.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body class="wallet-connect-page">
+    <main class="wallet-connect-panel pixel-panel">
+      <p class="section-kicker">ZKBEARS · NOIR WALLET</p>
+      <h1>CONNECT WALLET</h1>
+      <p id="wallet-connect-status" role="status">Waiting for Noir Wallet…</p>
+      <button class="pixel-button pixel-button--sun" id="wallet-connect-retry" type="button" hidden>TRY AGAIN</button>
+    </main>
+    <script type="module" src="./wallet-connect.js"></script>
+  </body>
+</html>

@@ -12,6 +12,7 @@ const state = {
   engagement: false,
   engagementConfigured: true,
   wallet: false,
+  walletConnecting: false,
   walletAddress: "",
   submitted: false,
 };
@@ -141,8 +142,10 @@ function render() {
   elements.engagementCard.classList.toggle("is-locked", !engagementUnlocked);
   elements.walletInput.readOnly = true;
   elements.walletInput.disabled = !walletUnlocked || state.submitted;
-  elements.noirButton.disabled = !walletUnlocked || state.wallet || state.submitted;
-  elements.noirButton.textContent = state.wallet ? "NOIR CONNECTED" : "CONNECT NOIR";
+  elements.noirButton.disabled = !walletUnlocked || state.wallet || state.submitted || state.walletConnecting;
+  elements.noirButton.textContent = state.wallet
+    ? "NOIR CONNECTED"
+    : state.walletConnecting ? "CONNECTING…" : "CONNECT NOIR";
   elements.walletCard.classList.toggle("is-locked", !walletUnlocked);
   elements.requirements.textContent = "Complete all four steps in order to save your whitelist spot.";
   elements.walletTaskNumber.textContent = "TASK 03";
@@ -201,6 +204,46 @@ function updateNoirStatus() {
   }
 }
 
+function connectNoirInFreshWindow() {
+  const requestId = Array.from(crypto.getRandomValues(new Uint32Array(4)), (value) => value.toString(16)).join("");
+  const connectUrl = new URL("./wallet-connect.html", window.location.href);
+  connectUrl.searchParams.set("request", requestId);
+  const popup = window.open(
+    connectUrl,
+    "zkbears-noir-connect",
+    "popup=yes,width=520,height=680,resizable=yes,scrollbars=yes",
+  );
+
+  if (!popup) {
+    return Promise.reject(new Error("The Noir connection window was blocked. Allow pop-ups for zkbears.xyz and click CONNECT NOIR again."));
+  }
+
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const finish = (callback, value) => {
+      if (settled) return;
+      settled = true;
+      window.removeEventListener("message", receiveConnection);
+      window.clearInterval(closedCheck);
+      callback(value);
+    };
+    const receiveConnection = (event) => {
+      if (event.origin !== window.location.origin || event.source !== popup) return;
+      if (event.data?.type !== "zkbears:noir-connection" || event.data?.requestId !== requestId) return;
+      if (event.data.error) {
+        finish(reject, new Error(event.data.error));
+        return;
+      }
+      finish(resolve, event.data.connection);
+    };
+    const closedCheck = window.setInterval(() => {
+      if (popup.closed) finish(reject, new Error("The Noir connection window was closed before the wallet connected."));
+    }, 400);
+
+    window.addEventListener("message", receiveConnection);
+  });
+}
+
 function consumeAuthResult() {
   const params = new URLSearchParams(window.location.search);
   const result = params.get("x_auth");
@@ -230,6 +273,7 @@ elements.disconnectX.addEventListener("click", async () => {
     follow: false,
     engagement: false,
     wallet: false,
+    walletConnecting: false,
     walletAddress: "",
     submitted: false,
   });
@@ -324,19 +368,28 @@ elements.noirButton.addEventListener("click", async () => {
     status(elements.walletStatus, "Complete the Like + Repost task first.", true);
     return;
   }
-  if (!noirInstalled()) {
-    status(elements.walletStatus, "Noir Wallet was not detected. If you just installed it, reload this page. Your completed tasks are already saved.", true);
-    return;
-  }
-  status(elements.walletStatus, "Confirm the connection inside Noir Wallet…");
+  if (state.walletConnecting) return;
+  state.walletConnecting = true;
+  status(
+    elements.walletStatus,
+    noirInstalled()
+      ? "Confirm the connection inside Noir Wallet…"
+      : "Opening a fresh Noir connection. This page will stay open…",
+  );
+  render();
   try {
-    const connection = await connectNoir();
+    const connection = noirInstalled()
+      ? await connectNoir()
+      : await connectNoirInFreshWindow();
+    if (!state.engagement) throw new Error("Complete the previous tasks before connecting a wallet.");
     state.walletAddress = connection.address;
     state.wallet = validUnifiedAddress(connection.address);
     elements.walletInput.value = connection.address;
     status(elements.walletStatus, "Connected and verified through Noir Wallet.");
   } catch (error) {
     status(elements.walletStatus, error?.message || "Could not connect to Noir Wallet.", true);
+  } finally {
+    state.walletConnecting = false;
   }
   render();
 });
