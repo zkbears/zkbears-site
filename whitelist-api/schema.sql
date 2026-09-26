@@ -30,6 +30,8 @@ CREATE TABLE IF NOT EXISTS task_progress (
   x_user_id TEXT PRIMARY KEY REFERENCES users(x_user_id) ON DELETE CASCADE,
   follow_verified INTEGER NOT NULL DEFAULT 0,
   engagement_verified INTEGER NOT NULL DEFAULT 0,
+  follow_opened_at INTEGER,
+  engagement_opened_at INTEGER,
   wallet_address TEXT UNIQUE,
   submitted_at INTEGER,
   legal_version TEXT,

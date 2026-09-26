@@ -4,10 +4,13 @@ import { WhitelistApiError, whitelistApi } from "./whitelist-api.js";
 
 const FOLLOW_VISIT_KEY_PREFIX = "zkbears_follow_task_opened";
 const ENGAGEMENT_VISIT_KEY_PREFIX = "zkbears_engagement_task_opened";
+const TASK_OPEN_DELAY_MS = 4000;
 const NOIR_INSTALL_PENDING_KEY = "zkbears_noir_install_pending";
 const NOIR_RELOAD_ATTEMPTED_KEY = "zkbears_noir_reload_attempted";
 const NOIR_SCROLL_POSITION_KEY = "zkbears_noir_scroll_position";
 const NOIR_STORE_URL = "https://chromewebstore.google.com/detail/noir-wallet/mfoghjbpfanobmnoemoepenjjcmfpmdn";
+let followCompletionTimer = null;
+let engagementCompletionTimer = null;
 
 const state = {
   user: null,
@@ -93,15 +96,17 @@ function followVisitKey() {
 }
 
 function rememberFollowVisit() {
-  try { localStorage.setItem(followVisitKey(), "1"); } catch { /* storage can be unavailable */ }
+  try { localStorage.setItem(followVisitKey(), String(Date.now())); } catch { /* storage can be unavailable */ }
 }
 
 function forgetFollowVisit() {
+  window.clearTimeout(followCompletionTimer);
+  followCompletionTimer = null;
   try { localStorage.removeItem(followVisitKey()); } catch { /* storage can be unavailable */ }
 }
 
 function hasPendingFollowVisit() {
-  try { return localStorage.getItem(followVisitKey()) === "1"; } catch { return false; }
+  try { return Boolean(localStorage.getItem(followVisitKey())); } catch { return false; }
 }
 
 function engagementVisitKey() {
@@ -109,15 +114,32 @@ function engagementVisitKey() {
 }
 
 function rememberEngagementVisit() {
-  try { localStorage.setItem(engagementVisitKey(), "1"); } catch { /* storage can be unavailable */ }
+  try { localStorage.setItem(engagementVisitKey(), String(Date.now())); } catch { /* storage can be unavailable */ }
 }
 
 function forgetEngagementVisit() {
+  window.clearTimeout(engagementCompletionTimer);
+  engagementCompletionTimer = null;
   try { localStorage.removeItem(engagementVisitKey()); } catch { /* storage can be unavailable */ }
 }
 
 function hasPendingEngagementVisit() {
-  try { return localStorage.getItem(engagementVisitKey()) === "1"; } catch { return false; }
+  try { return Boolean(localStorage.getItem(engagementVisitKey())); } catch { return false; }
+}
+
+function pendingVisitRemaining(key) {
+  try {
+    const startedAt = Number(localStorage.getItem(key));
+    if (!Number.isFinite(startedAt) || startedAt <= 0) return 0;
+    return Math.max(0, startedAt + TASK_OPEN_DELAY_MS - Date.now());
+  } catch {
+    return 0;
+  }
+}
+
+function countdownText(label, remaining) {
+  const seconds = Math.max(1, Math.ceil(remaining / 1000));
+  return `${label} Task completes in ${seconds} second${seconds === 1 ? "" : "s"}.`;
 }
 
 function storageValue(key) {
@@ -311,12 +333,31 @@ elements.followOpen.addEventListener("click", (event) => {
     return;
   }
   rememberFollowVisit();
-  status(elements.followStatus, "X profile opened. Come back here to complete the task.");
+  void whitelistApi.startFollowVisit().catch((error) => {
+    status(elements.followStatus, errorMessage(error, "Could not start the task timer. Try opening the task again."), true);
+  });
+  scheduleFollowVisitCompletion();
 });
 
 let completingFollowVisit = false;
+function scheduleFollowVisitCompletion() {
+  if (!state.authenticated || state.follow || !hasPendingFollowVisit()) return;
+  const remaining = pendingVisitRemaining(followVisitKey());
+  if (remaining <= 0) {
+    void completePendingFollowVisit();
+    return;
+  }
+  status(elements.followStatus, countdownText("X profile opened.", remaining));
+  window.clearTimeout(followCompletionTimer);
+  followCompletionTimer = window.setTimeout(scheduleFollowVisitCompletion, Math.min(remaining, 250));
+}
+
 async function completePendingFollowVisit() {
   if (completingFollowVisit || !state.authenticated || state.follow || !hasPendingFollowVisit()) return;
+  if (pendingVisitRemaining(followVisitKey()) > 0) {
+    scheduleFollowVisitCompletion();
+    return;
+  }
   completingFollowVisit = true;
   status(elements.followStatus, "Completing task…");
   try {
@@ -325,7 +366,11 @@ async function completePendingFollowVisit() {
     if (state.follow) forgetFollowVisit();
     status(elements.followStatus, state.follow ? "X profile opened. Task complete." : "Open the X profile to complete this task.", !state.follow);
   } catch (error) {
-    status(elements.followStatus, errorMessage(error, "Could not complete the task. Return to this page and try again."), true);
+    if (error instanceof WhitelistApiError && error.code === "task_timer_active") {
+      followCompletionTimer = window.setTimeout(() => void completePendingFollowVisit(), 300);
+    } else {
+      status(elements.followStatus, errorMessage(error, "Could not complete the task. Return to this page and try again."), true);
+    }
   } finally {
     completingFollowVisit = false;
     render();
@@ -349,12 +394,31 @@ elements.engagementOpen.addEventListener("click", (event) => {
     return;
   }
   rememberEngagementVisit();
-  status(elements.engagementStatus, "Announcement opened. Like and repost it, then return here.");
+  void whitelistApi.startEngagementVisit().catch((error) => {
+    status(elements.engagementStatus, errorMessage(error, "Could not start the task timer. Try opening the task again."), true);
+  });
+  scheduleEngagementVisitCompletion();
 });
 
 let completingEngagementVisit = false;
+function scheduleEngagementVisitCompletion() {
+  if (!state.follow || !state.engagementConfigured || state.engagement || !hasPendingEngagementVisit()) return;
+  const remaining = pendingVisitRemaining(engagementVisitKey());
+  if (remaining <= 0) {
+    void completePendingEngagementVisit();
+    return;
+  }
+  status(elements.engagementStatus, countdownText("Announcement opened.", remaining));
+  window.clearTimeout(engagementCompletionTimer);
+  engagementCompletionTimer = window.setTimeout(scheduleEngagementVisitCompletion, Math.min(remaining, 250));
+}
+
 async function completePendingEngagementVisit() {
   if (completingEngagementVisit || !state.follow || !state.engagementConfigured || state.engagement || !hasPendingEngagementVisit()) return;
+  if (pendingVisitRemaining(engagementVisitKey()) > 0) {
+    scheduleEngagementVisitCompletion();
+    return;
+  }
   completingEngagementVisit = true;
   status(elements.engagementStatus, "Completing task…");
   try {
@@ -363,7 +427,11 @@ async function completePendingEngagementVisit() {
     if (state.engagement) forgetEngagementVisit();
     status(elements.engagementStatus, state.engagement ? "Announcement post opened. Task complete." : "Open the announcement post to complete this task.", !state.engagement);
   } catch (error) {
-    status(elements.engagementStatus, errorMessage(error, "Could not complete the task. Return to this page and try again."), true);
+    if (error instanceof WhitelistApiError && error.code === "task_timer_active") {
+      engagementCompletionTimer = window.setTimeout(() => void completePendingEngagementVisit(), 300);
+    } else {
+      status(elements.engagementStatus, errorMessage(error, "Could not complete the task. Return to this page and try again."), true);
+    }
   } finally {
     completingEngagementVisit = false;
     render();

@@ -5,6 +5,7 @@ const LEGACY_COOKIE_NAME = "zkbears_whitelist_session";
 const OAUTH_STATE_TTL = 15 * 60;
 const SESSION_TTL = 30 * 24 * 60 * 60;
 const LEGAL_VERSION = "2026-09-23";
+const DEFAULT_TASK_DELAY_MS = 4000;
 
 export default {
   async fetch(request, env) {
@@ -21,7 +22,9 @@ export default {
       if (url.pathname === "/api/config" && request.method === "GET") return publicConfig(request, env);
       if (url.pathname === "/api/session" && request.method === "GET") return await sessionInfo(request, env);
       if (url.pathname === "/api/session" && request.method === "DELETE") return await logout(request, env);
+      if (url.pathname === "/api/tasks/follow/start" && request.method === "POST") return await startFollowVisit(request, env);
       if (url.pathname === "/api/tasks/follow" && request.method === "POST") return await completeFollowVisit(request, env);
+      if (url.pathname === "/api/tasks/engagement/start" && request.method === "POST") return await startEngagementVisit(request, env);
       if (url.pathname === "/api/tasks/engagement" && request.method === "POST") return await completeEngagementVisit(request, env);
       if (url.pathname === "/api/submit" && request.method === "POST") return await submitEntry(request, env);
       return json({ error: "Not found.", code: "not_found" }, 404, request, env);
@@ -144,9 +147,38 @@ async function logout(request, env) {
 async function completeFollowVisit(request, env) {
   requireOrigin(request, env);
   const session = await requireSession(request, env);
+  const progress = await env.DB.prepare("SELECT follow_verified, follow_opened_at FROM task_progress WHERE x_user_id = ?")
+    .bind(session.x_user_id).first();
+  if (!progress?.follow_opened_at) throw httpError(409, "Open the X profile to start this task.", "task_not_started");
+  if (Date.now() - progress.follow_opened_at < taskDelayMs(env)) {
+    throw httpError(409, "Wait four seconds before completing this task.", "task_timer_active");
+  }
   await env.DB.prepare("UPDATE task_progress SET follow_verified = ?, updated_at = ? WHERE x_user_id = ?")
     .bind(1, unixTime(), session.x_user_id).run();
   return json({ verified: true }, 200, request, env);
+}
+
+async function startFollowVisit(request, env) {
+  requireOrigin(request, env);
+  const session = await requireSession(request, env);
+  const now = Date.now();
+  await env.DB.prepare("UPDATE task_progress SET follow_opened_at = ?, updated_at = ? WHERE x_user_id = ?")
+    .bind(now, unixTime(), session.x_user_id).run();
+  return json({ started: true, delayMs: taskDelayMs(env) }, 200, request, env);
+}
+
+async function startEngagementVisit(request, env) {
+  requireOrigin(request, env);
+  const session = await requireSession(request, env);
+  const postId = String(env.TARGET_POST_ID || "").trim();
+  if (!/^\d+$/.test(postId)) throw httpError(503, "The announcement post has not been configured yet.", "post_not_configured");
+  const progress = await env.DB.prepare("SELECT follow_verified, engagement_verified, engagement_opened_at FROM task_progress WHERE x_user_id = ?")
+    .bind(session.x_user_id).first();
+  if (!progress?.follow_verified) throw httpError(409, "Complete the follow task first.", "follow_incomplete");
+  const now = Date.now();
+  await env.DB.prepare("UPDATE task_progress SET engagement_opened_at = ?, updated_at = ? WHERE x_user_id = ?")
+    .bind(now, unixTime(), session.x_user_id).run();
+  return json({ started: true, delayMs: taskDelayMs(env) }, 200, request, env);
 }
 
 async function completeEngagementVisit(request, env) {
@@ -154,9 +186,13 @@ async function completeEngagementVisit(request, env) {
   const session = await requireSession(request, env);
   const postId = String(env.TARGET_POST_ID || "").trim();
   if (!/^\d+$/.test(postId)) throw httpError(503, "The announcement post has not been configured yet.", "post_not_configured");
-  const progress = await env.DB.prepare("SELECT follow_verified, engagement_verified FROM task_progress WHERE x_user_id = ?")
+  const progress = await env.DB.prepare("SELECT follow_verified, engagement_verified, engagement_opened_at FROM task_progress WHERE x_user_id = ?")
     .bind(session.x_user_id).first();
   if (!progress?.follow_verified) throw httpError(409, "Complete the follow task first.", "follow_incomplete");
+  if (!progress?.engagement_opened_at) throw httpError(409, "Open the announcement post to start this task.", "task_not_started");
+  if (Date.now() - progress.engagement_opened_at < taskDelayMs(env)) {
+    throw httpError(409, "Wait four seconds before completing this task.", "task_timer_active");
+  }
   await env.DB.prepare("UPDATE task_progress SET engagement_verified = ?, updated_at = ? WHERE x_user_id = ?")
     .bind(1, unixTime(), session.x_user_id).run();
   return json({ verified: true }, 200, request, env);
@@ -308,6 +344,10 @@ async function readJson(request) {
 async function safeJson(response) { try { return await response.json(); } catch { return {}; } }
 function cleanUsername(value) { return String(value || "").trim().replace(/^@/, ""); }
 function unixTime() { return Math.floor(Date.now() / 1000); }
+function taskDelayMs(env) {
+  const configured = Number(env.TASK_DELAY_MS);
+  return Number.isFinite(configured) && configured >= 0 ? configured : DEFAULT_TASK_DELAY_MS;
+}
 function httpError(status, message, code) { const error = new Error(message); error.status = status; error.code = code; return error; }
 
 function randomToken(size) { return base64Url(crypto.getRandomValues(new Uint8Array(size))); }
